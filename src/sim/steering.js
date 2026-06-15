@@ -2,6 +2,7 @@ import { T, speedFactor, turnFactor } from '../data/tuning.js';
 import { think } from './agent.js';
 import { eyesUpdate } from './knowledge.js';
 import { dialogueTick } from './dialogue.js';
+import { queueTick } from './queue.js';
 
 export function simTick(world, dt) {
   const { agents, hash } = world;
@@ -16,6 +17,7 @@ export function simTick(world, dt) {
     if (a.nextThink <= 0) { a.nextThink = T.utilityTickEvery; if (a.beliefs && world.facts) think(a, world); }
   }
   dialogueTick(world, dt);
+  queueTick(world, dt);
   for (const a of agents) stepAgent(a, world, dt);
   resolveCollisions(world);
   const { w, h } = world.map;

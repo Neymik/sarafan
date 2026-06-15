@@ -95,6 +95,7 @@ test('randomWalkableNear: всегда проходимая клетка', () =>
 });
 
 import { bystanderChance, pickTopic, applyTopic } from '../src/sim/dialogue.js';
+import { initQueues, queueTick, queueSlotPos } from '../src/sim/queue.js';
 
 test('dialogue: шанс зеваки падает с расстоянием до нуля', () => {
   assert.ok(Math.abs(bystanderChance(0) - 0.1) < 1e-9);
@@ -112,6 +113,29 @@ test('dialogue: тема из объединения знаний, applyTopic у
   applyTopic(b, t, 10);
   if (t.kind === 'poi') assert.ok(b.beliefs.knownPois.has('food'));
   if (t.kind === 'event') assert.ok(b.beliefs.events.concert.learnedAt >= 5);
+});
+
+test('queue: слоты вдоль queueDir с шагом', () => {
+  const poi = { x: 10, y: 20, service: { rate: 4, queueDir: [1, 0] } };
+  const p0 = queueSlotPos(poi, 0), p2 = queueSlotPos(poi, 2);
+  assert.ok(Math.abs(p0.x - 10.6) < 1e-9 && Math.abs(p2.x - 11.8) < 1e-9);
+  assert.equal(p0.y, 20);
+});
+
+test('queue: обслуживание двигает очередь, обслуженный доволен', () => {
+  const poi = { x: 10, y: 20, service: { rate: 0.0001, queueDir: [1, 0] } }; // мгновенное
+  const world = { t: 100, map: { pois: { q: poi } }, agents: [], hash: { queryCircle: () => [] } };
+  initQueues(world);
+  const mk = id => ({ id, x: 10 + id, y: 20, stress: 50, boredom: 50, visitedCount: 0,
+    activity: 'queue', goalPoi: 'q', target: null, poiCooldown: {}, beliefs: { knownPois: new Set() } });
+  const a = mk(1), b = mk(2);
+  world.agents.push(a, b);
+  world.queues.q.line.push(a, b);
+  queueTick(world, 1);
+  assert.equal(world.queues.q.line.length, 1, 'голова обслужена');
+  assert.ok(a.stress < 50, 'обслуженный сбросил стресс');
+  assert.equal(a.activity, 'wander');
+  assert.equal(b.target.x, queueSlotPos(poi, 0).x, 'второй переехал в слот 0');
 });
 
 let fail = 0;

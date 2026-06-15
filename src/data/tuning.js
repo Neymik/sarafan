@@ -44,6 +44,14 @@ export const T = {
   talkMin: 4, talkMax: 7,
   talkCooldown: 20,
   talkTransfer: 0.9, bystanderBase: 0.1, bystanderRadius: 3,
+  // очереди
+  queueSpacing: 0.6,
+  queueJoinRadius: 3,
+  queueDefectStress: 70, queueDefectSlot: 10,
+  mobThreshold: 9,           // соседей у точки обслуживания = «ком»
+  mobRateFactor: 0.4,
+  injusticeStress: 15,
+  serveSatisfaction: 30,     // сброс стресса обслуженному
 };
 export function speedFactor(n) { return Math.max(0.15, 1 - Math.max(0, n - T.comfortN) * 0.09); }
 export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }

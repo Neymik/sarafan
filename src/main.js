@@ -10,6 +10,7 @@ import { Fields, randomWalkableNear } from './sim/flowfield.js';
 import { initBoards } from './ui/boards.js';
 import { drawHud } from './ui/hud.js';
 import { tickSchedule } from './data/schedule.js';
+import { initQueues } from './sim/queue.js';
 
 const canvas = document.getElementById('c');
 canvas.width = MAP.w * T.pxPerMeter; canvas.height = MAP.h * T.pxPerMeter;
@@ -22,6 +23,7 @@ export const world = {
 };
 world.obstacles = [...MAP.blocks];
 world.closeDoor = idx => closeDoor(world, idx);
+initQueues(world);
 window.world = world;
 
 export function closeDoor(world, idx) {
