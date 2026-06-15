@@ -22,6 +22,10 @@ for (let i = 0; i < T.agentCount; i++) {
                  edgeCongestion: new Uint8Array(world.map.edges.length) }; // ВРЕМЕННО до Task 8
   a.path = findPath(world.map, full, nearestWaypoint(world.map, a.x, a.y), poi.wp) || [];
   a.pathI = 0;
+  if (a.path.length > 1) { // не идти назад к стартовому вейпоинту, если следующий уже ближе
+    const w0 = world.map.waypoints[a.path[0]], w1 = world.map.waypoints[a.path[1]];
+    if (Math.hypot(w1.x - a.x, w1.y - a.y) < Math.hypot(w0.x - a.x, w0.y - a.y)) a.pathI = 1;
+  }
   const wpt = world.map.waypoints[poi.wp];
   a.target = { x: wpt.x + (Math.random() - 0.5) * 3, y: wpt.y + (Math.random() - 0.5) * 3 };
   world.agents.push(a);
