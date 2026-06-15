@@ -2,7 +2,7 @@ import { T } from '../data/tuning.js';
 const S = T.pxPerMeter;
 
 export function drawDebug(ctx, world) {
-  const g = world.fields.gridFor(world.doorsClosed ?? 0);
+  const g = world.fields.gridFor(world.obstMask ?? 0);
   // непроходимые клетки
   ctx.fillStyle = 'rgba(255,80,80,0.12)';
   for (let y = 0; y < g.H; y++) for (let x = 0; x < g.W; x++)
@@ -20,7 +20,7 @@ export function drawDebug(ctx, world) {
   // поле выбранного агента: стрелки его clear-градиента
   const a = world.selected;
   if (a && a.goalPoi) {
-    const mask = (a.doorMask ?? 0) & (world.doorsClosed ?? 0);
+    const mask = (a.obstMask ?? 0) & (world.obstMask ?? 0);
     ctx.strokeStyle = 'rgba(120,220,255,0.6)';
     for (let y = 1; y < g.H; y += 2) for (let x = 1; x < g.W; x += 2) {
       const dir = world.fields.dir(a.smartUntil > world.t ? 'smart' : 'clear', mask, a.goalPoi, x + 0.5, y + 0.5);

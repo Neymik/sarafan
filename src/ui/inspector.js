@@ -29,7 +29,7 @@ export function updateInspector(world) {
   const totalPois = Object.keys(world.map.pois).length;
   el.style.display = 'block';
   el.textContent =
-`#${a.id} ${a.preset}  [${a.activity}]
+`#${a.id} ${a.kind === 'visitor' ? a.preset : a.kind}${a.superfan ? ' 🔥суперфан' : ''}${a.searching ? ' 💔ищет друга' : ''}  [${a.activity}]
 stress  ${bar(a.stress)} ${a.stress | 0}
 fatigue ${bar(a.fatigue)} ${a.fatigue | 0}
 boredom ${bar(a.boredom)} ${a.boredom | 0}
@@ -39,7 +39,7 @@ sociability ${a.sociability.toFixed(2)}  stubborn ${a.stubborn.toFixed(2)}
 politeness ${a.politeness.toFixed(2)}  conformity ${a.conformity.toFixed(2)}
 mass ${a.mass.toFixed(1)}  speed ${a.maxSpeed.toFixed(1)}  agility ${a.agility.toFixed(1)}
 ─ знание ─
-POI: ${a.beliefs.knownPois.size}/${totalPois}  jamMarks: ${a.beliefs.jamMarks.length}  двери: ${a.doorMask}
+POI: ${a.beliefs.knownPois.size}/${totalPois}  jamMarks: ${a.beliefs.jamMarks.length}  ленты: ${a.obstMask}
 концерт: верит ${fmtClock(bel.time)}/${bel.status}
 правда:  ${fmtClock(f.time)}/${f.status} ${knowledgeLag(a, world) > 0 ? '⚠ ОТСТАЛ' : '✓'}
 ─ цель ─
