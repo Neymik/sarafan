@@ -2,28 +2,38 @@ import { T } from '../data/tuning.js';
 const S = T.pxPerMeter;
 
 export function drawDebug(ctx, world) {
-  if (!world.map.edges) return; // v1-оверлей; переписывается в v2 Task 11
-  // тепло плотности
-  for (const a of world.agents) {
-    if (a.density > T.comfortN) {
-      ctx.fillStyle = `rgba(255,60,30,${Math.min(0.25, (a.density - T.comfortN) * 0.03)})`;
-      ctx.beginPath(); ctx.arc(a.x * S, a.y * S, T.densityRadius * S, 0, 7); ctx.fill();
+  const g = world.fields.gridFor(world.doorsClosed ?? 0);
+  // непроходимые клетки
+  ctx.fillStyle = 'rgba(255,80,80,0.12)';
+  for (let y = 0; y < g.H; y++) for (let x = 0; x < g.W; x++)
+    if (!g.walk[y * g.W + x]) ctx.fillRect(x * S, y * S, S, S);
+  // тепло плотности (из smart-полей)
+  if (world.fields.density) {
+    const d = world.fields.density;
+    ctx.fillStyle = 'rgba(255,140,30,0.5)';
+    for (let y = 0; y < g.H; y++) for (let x = 0; x < g.W; x++) {
+      const v = d[y * g.W + x];
+      if (v > 2) { ctx.globalAlpha = Math.min(0.5, v * 0.06); ctx.fillRect(x * S, y * S, S, S); }
+    }
+    ctx.globalAlpha = 1;
+  }
+  // поле выбранного агента: стрелки его clear-градиента
+  const a = world.selected;
+  if (a && a.goalPoi) {
+    const mask = (a.doorMask ?? 0) & (world.doorsClosed ?? 0);
+    ctx.strokeStyle = 'rgba(120,220,255,0.6)';
+    for (let y = 1; y < g.H; y += 2) for (let x = 1; x < g.W; x += 2) {
+      const dir = world.fields.dir(a.smartUntil > world.t ? 'smart' : 'clear', mask, a.goalPoi, x + 0.5, y + 0.5);
+      if (!dir) continue;
+      ctx.beginPath();
+      ctx.moveTo((x + 0.5) * S, (y + 0.5) * S);
+      ctx.lineTo((x + 0.5 + dir.x * 0.8) * S, (y + 0.5 + dir.y * 0.8) * S);
+      ctx.stroke();
     }
   }
-  // граф: рёбра по правде загрузки
-  world.map.edges.forEach((e, i) => {
-    const wa = world.map.waypoints[e.a], wb = world.map.waypoints[e.b];
-    const c = world.edgeCongestion[i];
-    ctx.strokeStyle = world.edgePassable[i] ? `rgba(${c},${255 - c},120,0.7)` : 'rgba(255,0,0,0.9)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(wa.x * S, wa.y * S); ctx.lineTo(wb.x * S, wb.y * S); ctx.stroke();
-  });
-  world.map.waypoints.forEach((w, i) => {
-    ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.fillText(String(i), w.x * S + 3, w.y * S - 3);
-  });
   // вектора скоростей
-  ctx.strokeStyle = 'rgba(120,180,255,0.5)';
-  for (const a of world.agents) {
-    ctx.beginPath(); ctx.moveTo(a.x * S, a.y * S); ctx.lineTo((a.x + a.vx) * S, (a.y + a.vy) * S); ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,180,255,0.4)';
+  for (const ag of world.agents) {
+    ctx.beginPath(); ctx.moveTo(ag.x * S, ag.y * S); ctx.lineTo((ag.x + ag.vx) * S, (ag.y + ag.vy) * S); ctx.stroke();
   }
 }
