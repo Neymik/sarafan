@@ -55,6 +55,7 @@ export function specialTick(world, dt) {
     }
   }
   streamerTick(world);
+  journalistTick(world);
   starTick(world);
   pairSpawnTick(world);
   pairTick(world);
@@ -97,6 +98,16 @@ function streamerTick(world) {
     // хвост держит курс на стримера
     for (const f of world.agents)
       if (f.activity === 'follow' && f.followTarget === s.id) f.target = { x: s.x, y: s.y };
+  }
+}
+
+function journalistTick(world) {
+  for (const j of world.agents) {
+    if (j.kind !== 'journalist') continue;
+    if (world.t >= j.despawnAt) { j.despawn = true; continue; }
+    if (!j.goalPoi) pickPoiTarget(world, j);
+    const p = world.map.pois[j.goalPoi];
+    if (p && (j.x - p.fx) ** 2 + (j.y - p.fy) ** 2 < 9) pickPoiTarget(world, j);
   }
 }
 

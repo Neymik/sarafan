@@ -1,16 +1,28 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>ConCrowd</title>
 <style>
-  body{margin:0;background:#0b0b10;display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui}
+  body{margin:0;background:#0b0b10;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;font-family:system-ui;gap:6px}
   canvas{background:#14141c}
-  #cards{position:fixed;display:none;flex-direction:column;gap:6px;background:#222;padding:10px;border-radius:8px}
+  #toolbar{display:flex;gap:6px;align-items:center;color:#9ab;font:12px monospace}
+  #toolbar button{background:#28304a;border:0;color:#dde;padding:6px 10px;border-radius:6px;cursor:pointer}
+  #toolbar button.active{background:#4a6fd0}
+  #toolbar button:disabled{opacity:.4;cursor:default}
+  #simpanel{display:flex;gap:6px;align-items:center;color:#9ab;font:11px monospace;flex-wrap:wrap;max-width:960px}
+  #simpanel button{background:#333a4c;border:0;color:#cde;padding:4px 8px;border-radius:4px;cursor:pointer}
+  #cards{position:fixed;display:none;flex-direction:column;gap:6px;background:#222;padding:10px;border-radius:8px;z-index:5}
   #cards button{background:#3a6;border:0;color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer;text-align:left}
-  #inspector{position:fixed;right:8px;top:8px;width:240px;background:rgba(20,22,30,.92);color:#cde;
-  font:11px monospace;padding:10px;border-radius:8px;display:none;white-space:pre-wrap}
+  #cards select{padding:4px}
+  #inspector{position:fixed;right:8px;top:8px;width:240px;background:rgba(20,22,30,.92);color:#cde;font:11px monospace;padding:10px;border-radius:8px;display:none;white-space:pre-wrap}
+  #score{position:fixed;right:8px;bottom:8px;width:240px;background:rgba(20,22,30,.92);color:#cde;font:11px monospace;padding:10px;border-radius:8px;white-space:pre-wrap}
+  #finale{position:fixed;inset:0;display:none;justify-content:center;align-items:center;background:rgba(5,6,10,.88);color:#fff;font:14px monospace;text-align:center;z-index:10}
 </style></head>
 <body>
-<canvas id="c" width="960" height="640"></canvas>
+<div id="toolbar"></div>
+<canvas id="c" width="960" height="704"></canvas>
+<div id="simpanel"></div>
 <div id="cards"></div>
 <div id="inspector"></div>
+<div id="score"></div>
+<div id="finale"></div>
 <script type="module" src="src/main.js"></script>
 </body></html>
