@@ -78,7 +78,7 @@ export function dialogueTick(world, dt) {
   }
 }
 
-function finishTalk(world, a, b) {
+export function finishTalk(world, a, b) {
   // Если b уже завершил разговор (talkWith уже != a.id или activity != 'talk'),
   // это значит finishTalk уже был вызван для b раньше в этой итерации цикла.
   // Проверяем: если b.activity !== 'talk', то он уже освобождён — передаём undefined.
@@ -105,5 +105,9 @@ function finishTalk(world, a, b) {
     x.talkWith = -1; x.talkWalk = false;
     x.talkCooldownUntil = world.t + T.talkCooldown;
     x.boredom = Math.max(0, x.boredom - 25);   // поболтал — повеселел
+    if (x.personalSpace < T.extrovertSpace) {
+      x.stress = Math.max(0, x.stress - T.talkRelief);
+      x.joy = Math.min(100, (x.joy ?? 50) + T.talkJoy);
+    }
   }
 }

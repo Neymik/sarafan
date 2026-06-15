@@ -44,9 +44,15 @@ export function simTick(world, dt) {
   }
 }
 
+export function updateNeedsJoy(a, dt) {
+  if (a.joy > T.joyBaseline) a.joy = Math.max(T.joyBaseline, a.joy - T.joyDecay * dt);
+  a.joy = Math.max(0, Math.min(100, a.joy));
+}
+
 function updateStress(world, dt) {
   for (const a of world.agents) {
     if (a.dragged) continue;
+    updateNeedsJoy(a, dt);
     let ds = -T.stressDecay;
     ds += T.stressFromDensity * Math.max(0, a.density - T.comfortN);
     if (a.contact) ds += T.stressFromContact;

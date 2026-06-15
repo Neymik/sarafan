@@ -11,8 +11,13 @@ export function makeBeliefs(world, mapKnown) {
     if (p.exit) { known.add(k); continue; }          // входы-выходы знают все
     if (Math.random() < mapKnown) known.add(k);
   }
+  const knownEvents = new Set(), eventTime = {};
+  for (const ev of (world.events ?? [])) {
+    if (Math.random() < T.eventKnowChance) { knownEvents.add(ev.id); eventTime[ev.id] = ev.time; }
+  }
   return {
     knownPois: known, jamMarks: [],
+    knownEvents, eventTime,
     events: { concert: { time: 14.5 * 3600, place: 'stage', status: 'on', learnedAt: 0 } },
   };
 }

@@ -10,7 +10,7 @@ export const PRESETS = [ // веса [goto, wander, phone, rest], доля из�
 
 export function makeAgent(world, id) {
   const p = PRESETS[(Math.random() * PRESETS.length) | 0];
-  const big = Math.random() < 0.06; // большой косплеер
+  const big = Math.random() < T.bigChance; // большой косплеер
   return {
     id, preset: p.name, mapKnown: p.mapKnown, weights: p.w,
     x: world.map.spawn.x + (Math.random() - 0.5) * 4,
@@ -25,6 +25,10 @@ export function makeAgent(world, id) {
     politeness: Math.random(),
     perception: 1,
     wantsConcert: Math.random() < 0.7,
+    joy: T.joyStart + Math.random() * T.joyJitter,
+    attendedEvents: new Set(),
+    evangelBooth: null, evangelistUntil: 0, complainBooth: null, complainUntil: 0,
+    lureTarget: null,
     stress: 0, fatigue: 0, boredom: 0, phoneItch: Math.random() * 30,
     activity: 'wander', target: null,
     goalPoi: null, smartUntil: -99, obstMask: 0, talkWalk: false, despawn: false,

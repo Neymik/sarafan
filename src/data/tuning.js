@@ -5,7 +5,7 @@ export const T = {
   // плотность
   densityRadius: 2.0, comfortN: 5, jamN: 8,
   // силы
-  personalSpaceForce: 2.0, alignmentThreshold: 4, wallRepel: 3.0,
+  personalSpaceForce: 2.0, alignmentThreshold: 4, wallRepel: 2.1,
   // нужды/стресс (в единицах за реальную секунду)
   fatigueRate: 0.6, boredomRate: 1.2, phoneItchRate: 1.0,
   stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 4.0,
@@ -44,7 +44,7 @@ export const T = {
   litterEvery: 2, litterChance: 0.3, litterMax: 40, litterStress: 0.3, litterJamCell: 4, // агентов в клетке 1м² для мусора (физический максимум ~6)
   // эвенты
   rumorEvery: 45, rumorJitter: 15,
-  incidentDensity: 12, incidentAfter: 10, incidentDur: 20, incidentStress: 15, incidentRadius: 5,
+  incidentDensity: 10, incidentAfter: 10, incidentDur: 20, incidentStress: 15, incidentRadius: 5,
   // инструменты игрока
   promoFactor: 3, promoTime: 60,
   paCooldown: 45, paStress: 5,
@@ -52,6 +52,23 @@ export const T = {
   volunteerMax: 2, volunteerRadius: 6, volunteerTeachEvery: 10,
   barrierSlots: 3, dragHold: 0.25,
   pressCheckEvery: 10,
+  // баланс v4
+  bigChance: 0.036,
+  // радость
+  joyStart: 50, joyJitter: 10, joyBaseline: 35, joyDecay: 0.5,
+  // экстраверт
+  extrovertSpace: 0.7, talkRelief: 8, talkJoy: 6,
+  // навигация
+  whiskerLen: 1.6,
+  // аттракционы/эвенты
+  evangelistTime: 30, eventBonus: 15, eventKnowChance: 0.35,
+  rescheduleEvery: 45, rescheduleJitter: 15,
+  // фейк-ажиотаж
+  lureTtl: 20, lureInjectCount: 20, lureRadius: 2, lureJoyHit: 12, lureStress: 5,
+  // волонтёр-NPC и лидеры
+  volRelief: 6, leaderGroupSize: 5,
+  // драг
+  dragCooldown: 10,
 };
 export function speedFactor(n) { return Math.max(0.25, 1 - Math.max(0, n - T.comfortN) * 0.09); }
 export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }

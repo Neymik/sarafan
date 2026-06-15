@@ -103,11 +103,11 @@ test('randomWalkableNear: всегда проходимая клетка', () =>
   }
 });
 
-import { bystanderChance, pickTopic, applyTopic } from '../src/sim/dialogue.js';
+import { bystanderChance, pickTopic, applyTopic, finishTalk } from '../src/sim/dialogue.js';
 import { initQueues, queueTick, queueSlotPos } from '../src/sim/queue.js';
 import { tickSchedule } from '../src/data/schedule.js';
 import { makeWorldFacts } from '../src/sim/knowledge.js';
-import { simTick } from '../src/sim/steering.js';
+import { simTick, updateNeedsJoy } from '../src/sim/steering.js';
 
 test('dialogue: шанс зеваки падает с расстоянием до нуля', () => {
   assert.ok(Math.abs(bystanderChance(0) - 0.1) < 1e-9);
@@ -253,6 +253,28 @@ test('слух: заражает одного с пометкой свежест
 });
 
 import { incidentsTick } from '../src/sim/incidents.js';
+
+test('joy: дрейф к базису сверху, снизу не падает сам', () => {
+  const world = { t: 0, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, events: [] };
+  const a = makeAgent(world, 1);
+  a.joy = 80; updateNeedsJoy(a, 1); assert.ok(a.joy < 80 && a.joy >= 35, 'сполз к базису: ' + a.joy);
+  a.joy = 20; updateNeedsJoy(a, 1); assert.equal(a.joy, 20, 'ниже базиса сам не падает');
+});
+
+test('экстраверт: болтовня снимает стресс и растит joy, замкнутому — нет', () => {
+  const mk = ps => ({ id: ps, kind: 'visitor', x: 0, y: 0, personalSpace: ps, stress: 50, joy: 50,
+    boredom: 50, activity: 'talk', talkWith: -1, talkWalk: false, perception: 1,
+    beliefs: { knownPois: new Set(), jamMarks: [], knownEvents: new Set(), eventTime: {},
+      events: { concert: { time: 1, place: 'stage', status: 'on', learnedAt: 0 } } }, obstMask: 0 });
+  const ext = mk(0.5), intr = mk(1.2);
+  const world = { t: 100, agents: [ext, intr], hash: { queryCircle: () => [] }, flashes: [],
+    volunteers: [], map: { pois: {} }, obstMask: 0, talksFinished: 0 };
+  finishTalk(world, ext, undefined);
+  finishTalk(world, intr, undefined);
+  assert.ok(ext.stress < 50 && ext.joy > 50, 'экстраверт повеселел');
+  assert.equal(intr.stress, 50, 'замкнутому болтовня стресс не снимает');
+});
 
 test('инцидент: горячая клетка 10с → слот занят, через 20с свободен', () => {
   const fl = new Fields(MAP);
