@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { SpatialHash } from '../src/sim/spatialHash.js';
-import { resolveCollisions, pushOutOfRect } from '../src/sim/steering.js';
+import { resolveCollisions, pushOutOfRect, segmentHitsRect, steerAround } from '../src/sim/steering.js';
 import { MAP } from '../src/data/map.js';
 import { buildGrid, computeField, fieldDir, Fields, isWalkable, randomWalkableNear } from '../src/sim/flowfield.js';
 
@@ -296,6 +296,21 @@ test('инцидент: горячая клетка 10с → слот занят
   fl.density[cell] = 0;
   for (let i = 0; i < 25; i++) { incidentsTick(world, 1); world.t += 1; }
   assert.equal(world.fields.slots[3], null, 'оцепление снято');
+});
+
+test('segmentHitsRect: прямая сквозь прямоугольник и мимо', () => {
+  const r = { x: 5, y: 0, w: 2, h: 10 };
+  assert.ok(segmentHitsRect(0, 5, 1, 0, 8, r, 0.2), 'луч вправо пробивает стену');
+  assert.ok(!segmentHitsRect(0, 5, 0, 1, 8, r, 0.2), 'луч вверх мимо');
+});
+
+test('steerAround: цель за стеной → направление повёрнуто в обход', () => {
+  const world = { obstacles: [{ x: 5, y: 0, w: 2, h: 10 }] };
+  const a = { x: 0, y: 5, radius: 0.3 };
+  const out = steerAround(a, 1, 0, world);          // хочет прямо в стену
+  assert.ok(Math.abs(out.x) + Math.abs(out.y) > 0, 'есть направление');
+  assert.ok(!segmentHitsRect(a.x, a.y, out.x, out.y, 1.6, world.obstacles[0], a.radius),
+    'итоговое направление не бьёт в стену');
 });
 
 let fail = 0;

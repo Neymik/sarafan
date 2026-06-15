@@ -78,7 +78,7 @@ function stepAgent(a, world, dt) {
   }
   if (!hasGoal && a.target) {
     const ex = a.target.x - a.x, ey = a.target.y - a.y, d = Math.hypot(ex, ey);
-    if (d > 0.3) { sx = ex / d; sy = ey / d; hasGoal = true; }
+    if (d > 0.3) { const s = steerAround(a, ex / d, ey / d, world); sx = s.x; sy = s.y; hasGoal = true; }
     else if (a.activity === 'wander') a.target = null; // дошёл до точки исследования — мозг выберет новую
   }
   if (hasGoal) {
@@ -178,6 +178,34 @@ export function resolveCollisions(world) {
       }
     }
   }
+}
+
+export function segmentHitsRect(x, y, dx, dy, len, r, pad) {
+  const ex = r.x - pad, ey = r.y - pad, ew = r.w + 2 * pad, eh = r.h + 2 * pad; // расширенный rect
+  // параметрический отрезок (x,y)+(dx,dy)*t, t∈[0,len]; slab-тест
+  let t0 = 0, t1 = len;
+  for (const [p, q, lo, hi] of [[dx, x, ex, ex + ew], [dy, y, ey, ey + eh]]) {
+    if (Math.abs(p) < 1e-9) { if (q < lo || q > hi) return false; continue; }
+    let a = (lo - q) / p, b = (hi - q) / p; if (a > b) [a, b] = [b, a];
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+    if (t0 > t1) return false;
+  }
+  return t1 >= 0 && t0 <= len;
+}
+
+export function steerAround(a, dx, dy, world) {
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return { x: dx, y: dy };
+  let ux = dx / len, uy = dy / len;
+  const obs = world.obstacles ?? world.map?.blocks ?? [];
+  const blocked = dir => obs.some(r => segmentHitsRect(a.x, a.y, dir.x, dir.y, T.whiskerLen, r, a.radius));
+  if (!blocked({ x: ux, y: uy })) return { x: dx, y: dy };
+  for (const deg of [30, -30, 60, -60, 90, -90]) {     // ищем ближайший свободный угол
+    const r = deg * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+    const nd = { x: ux * c - uy * s, y: ux * s + uy * c };
+    if (!blocked(nd)) return { x: nd.x * len, y: nd.y * len };
+  }
+  return { x: dx, y: dy }; // всё заблокировано — пусть wallRepel/pushOut разрулят
 }
 
 export function pushOutOfRect(a, r) {
