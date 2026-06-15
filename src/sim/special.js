@@ -133,6 +133,7 @@ function pairSpawnTick(world) {
 export function pairTick(world) {
   for (const a of world.agents) {
     if (!a.friendId) continue;
+    if (a.despawn) continue; // деспавнящийся не пугает напарника разлукой
     const b = world.agents.find(x => x.id === a.friendId);
     if (!b || b.despawn) { a.friendId = null; a.searching = false; continue; }
     if (a.id > b.id) continue; // пара обрабатывается один раз
@@ -189,7 +190,7 @@ function litterTick(world, dt) {
   const d = world.fields.density, g = world.fields.gridFor(0);
   for (let i = 0; i < d.length; i++) {
     if (world.litter.length >= T.litterMax) break;
-    if (d[i] >= T.jamN && Math.random() < T.litterChance)
+    if (d[i] >= T.litterJamCell && Math.random() < T.litterChance)
       world.litter.push({ x: i % g.W + Math.random(), y: ((i / g.W) | 0) + Math.random() });
   }
 }

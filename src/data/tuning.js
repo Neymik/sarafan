@@ -41,7 +41,7 @@ export const T = {
   followAura: 4, followMax: 15,
   starAura: 10, poseGameMin: 15,        // косплеер позирует 15 игр. мин (15 реальных сек)
   pairSepDist: 15, pairReuniteDist: 5, pairEveryGameMin: 15,
-  litterEvery: 2, litterChance: 0.3, litterMax: 40, litterStress: 0.3,
+  litterEvery: 2, litterChance: 0.3, litterMax: 40, litterStress: 0.3, litterJamCell: 4, // агентов в клетке 1м² для мусора (физический максимум ~6)
   // эвенты
   rumorEvery: 45, rumorJitter: 15,
   incidentDensity: 12, incidentAfter: 10, incidentDur: 20, incidentStress: 15, incidentRadius: 5,
