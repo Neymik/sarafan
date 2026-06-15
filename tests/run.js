@@ -166,6 +166,19 @@ test('волна открытия: ~200 за 10 сек, все в проходи
 });
 
 import { initLogistics, logisticsTick } from '../src/sim/logistics.js';
+import { specialTick, spawnSpecial } from '../src/sim/special.js';
+
+test('special: спавнер создаёт kind с нужными правками', () => {
+  const world = { t: 0, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, flashes: [] };
+  const s = spawnSpecial(world, 'streamer');
+  assert.equal(s.kind, 'streamer');
+  assert.ok(s.maxSpeed < 2.1, 'стример медленный');
+  const f = spawnSpecial(world, 'superfan');
+  assert.equal(f.kind, 'visitor', 'суперфан — обычный visitor с флагом');
+  assert.equal(f.superfan, true);
+  assert.equal(f.stubborn, 1);
+});
 
 test('stock: пустой склад у POI останавливает обслуживание', () => {
   const poi = { x: 9, y: 19, w: 2, h: 2, face: 'E', fx: 10, fy: 20, service: { rate: 0.0001 }, stock: 1 };
