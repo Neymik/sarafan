@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { SpatialHash } from '../src/sim/spatialHash.js';
-import { resolveCollisions, pushOutOfWalls } from '../src/sim/steering.js';
+import { resolveCollisions, pushOutOfRect } from '../src/sim/steering.js';
 import { findPath, nearestWaypoint } from '../src/sim/pathfinding.js';
 import { MAP } from '../src/data/map.js';
 import { buildGrid, computeField, fieldDir, Fields, isWalkable, randomWalkableNear } from '../src/sim/flowfield.js';
@@ -33,10 +33,13 @@ test('PBD: пересекающиеся кружки раздвигаются, �
   assert.ok(Math.abs(b.x - 0.3) < Math.abs(a.x - 0), 'тяжёлый сдвинулся меньше');
 });
 
-test('walls: агента выталкивает из стены', () => {
-  const a = { x: 5, y: 0.1, radius: 0.3 };
-  pushOutOfWalls(a, [[0, 0, 10, 0]]);
-  assert.ok(Math.abs(a.y) >= 0.3 - 1e-9);
+test('rect: выталкивает сбоку и из центра', () => {
+  const a = { x: 5.1, y: 7, radius: 0.3 };
+  pushOutOfRect(a, { x: 5, y: 5, w: 4, h: 4 });
+  assert.ok(a.x <= 5 - 0.3 + 1e-9, 'вытолкнут влево: ' + a.x);
+  const b = { x: 7, y: 5.2, radius: 0.3 };
+  pushOutOfRect(b, { x: 5, y: 5, w: 4, h: 4 });
+  assert.ok(b.y <= 5 - 0.3 + 1e-9, 'из центра через верхнюю грань: ' + b.y);
 });
 
 test('path: спавн → сцена идёт через холл', () => {

@@ -4,15 +4,19 @@ const S = T.pxPerMeter;
 
 export function draw(ctx, world) {
   const { map } = world;
-  ctx.clearRect(0, 0, map.w * S, map.h * S);
-  for (const z of map.zones) {
-    const [x, y, w, h] = z.rect;
-    ctx.fillStyle = z.color; ctx.fillRect(x * S, y * S, w * S, h * S);
-  }
-  ctx.strokeStyle = '#aab'; ctx.lineWidth = 2;
-  for (const [x1, y1, x2, y2] of map.walls) {
-    ctx.beginPath(); ctx.moveTo(x1 * S, y1 * S); ctx.lineTo(x2 * S, y2 * S); ctx.stroke();
-  }
+  ctx.fillStyle = '#10131a';
+  ctx.fillRect(0, 0, map.w * S, map.h * S);
+  ctx.fillStyle = '#262b38';
+  for (const b of map.blocks) ctx.fillRect(b.x * S, b.y * S, b.w * S, b.h * S);
+  ctx.strokeStyle = '#3a4356'; ctx.lineWidth = 1;
+  for (const b of map.blocks) ctx.strokeRect(b.x * S, b.y * S, b.w * S, b.h * S);
+  if (world.doorsClosed) map.doors.forEach((d, i) => {
+    if (world.doorsClosed & (1 << i)) { ctx.fillStyle = '#a33'; ctx.fillRect(d.x * S, d.y * S, d.w * S, d.h * S); }
+  });
+  ctx.fillStyle = '#5a6478'; ctx.font = '10px monospace';
+  for (const b of map.blocks) if (b.label) ctx.fillText(b.label, (b.x + 0.4) * S, (b.y + b.h / 2) * S);
+  ctx.fillStyle = '#8fa';
+  for (const [k, p] of Object.entries(map.pois)) { ctx.fillRect(p.x * S - 2, p.y * S - 2, 4, 4); ctx.fillText(p.label, p.x * S + 4, p.y * S - 4); }
   for (const b of map.boards) {
     ctx.fillStyle = '#4af'; ctx.fillRect(b.x * S - 5, b.y * S - 5, 10, 10);
   }

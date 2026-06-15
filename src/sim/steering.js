@@ -22,10 +22,11 @@ export function simTick(world, dt) {
   for (const a of agents) stepAgent(a, world, dt);
   resolveCollisions(world);
   const { w, h } = world.map;
+  const obs = world.obstacles ?? world.map.blocks;
   for (const a of agents) {
-    pushOutOfWalls(a, world.map.walls);
-    a.x = Math.max(a.radius, Math.min(w - a.radius, a.x));
-    a.y = Math.max(a.radius, Math.min(h - a.radius, a.y));
+    for (const r of obs) pushOutOfRect(a, r);
+    a.x = Math.max(a.radius + 1, Math.min(w - 1 - a.radius, a.x));
+    a.y = Math.max(a.radius + 1, Math.min(h - 1 - a.radius, a.y));
   }
   updateStress(world, dt);
 }
@@ -132,24 +133,25 @@ export function resolveCollisions(world) {
     if (world.map) {
       const { w, h } = world.map;
       for (const a of world.agents) {
-        a.x = Math.max(a.radius, Math.min(w - a.radius, a.x));
-        a.y = Math.max(a.radius, Math.min(h - a.radius, a.y));
+        a.x = Math.max(a.radius + 1, Math.min(w - 1 - a.radius, a.x));
+        a.y = Math.max(a.radius + 1, Math.min(h - 1 - a.radius, a.y));
       }
     }
   }
 }
 
-export function pushOutOfWalls(a, walls) {
-  for (const [x1, y1, x2, y2] of walls) {
-    const wx = x2 - x1, wy = y2 - y1;
-    const t = Math.max(0, Math.min(1, ((a.x - x1) * wx + (a.y - y1) * wy) / (wx * wx + wy * wy)));
-    const px = x1 + wx * t, py = y1 + wy * t;
-    let dx = a.x - px, dy = a.y - py;
-    const d = Math.hypot(dx, dy);
-    if (d < a.radius) {
-      if (d < 1e-4) { const l = Math.hypot(wy, wx) || 1; dx = wy / l; dy = -wx / l; }
-      else { dx /= d; dy /= d; }
-      a.x = px + dx * a.radius; a.y = py + dy * a.radius;
-    }
-  }
+export function pushOutOfRect(a, r) {
+  const px = Math.max(r.x, Math.min(r.x + r.w, a.x));
+  const py = Math.max(r.y, Math.min(r.y + r.h, a.y));
+  let dx = a.x - px, dy = a.y - py;
+  const d = Math.hypot(dx, dy);
+  if (d >= a.radius) return;
+  if (d > 1e-4) { a.x = px + dx / d * a.radius; a.y = py + dy / d * a.radius; return; }
+  // центр внутри прямоугольника — через ближайшую грань
+  const L = a.x - r.x, R = r.x + r.w - a.x, Tp = a.y - r.y, B = r.y + r.h - a.y;
+  const m = Math.min(L, R, Tp, B);
+  if (m === L) a.x = r.x - a.radius;
+  else if (m === R) a.x = r.x + r.w + a.radius;
+  else if (m === Tp) a.y = r.y - a.radius;
+  else a.y = r.y + r.h + a.radius;
 }
