@@ -406,6 +406,16 @@ test('computeDesires: сортировка по убыванию, промо п�
   assert.ok(d[0].score >= d[d.length - 1].score);
 });
 
+test('event attend: плохой live-эвент не роняет joy ниже 0', () => {
+  const world = { t: 100, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, events: makeEvents(MAP), served: 0 };
+  const ev = world.events[0]; ev.status = 'live'; ev.quality = -1;
+  const a = makeAgent(world, 9); a.joy = 5; a.beliefs.knownEvents.add(ev.id);
+  a.goalPoi = ev.poi; a.x = MAP.pois[ev.poi].fx; a.y = MAP.pois[ev.poi].fy;
+  arrive(a, world);
+  assert.ok(a.joy >= 0, 'joy не ушёл в минус: ' + a.joy);
+});
+
 let fail = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log('ok -', name); }

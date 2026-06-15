@@ -100,13 +100,13 @@ export function arrive(a, world) { // дошёл до goalPoi (несервис�
     if (ev.poi !== a.goalPoi || ev.status !== 'live') continue;
     if (!a.beliefs.knownEvents.has(ev.id) || a.attendedEvents.has(ev.id)) continue;
     a.attendedEvents.add(ev.id);
-    a.joy = Math.min(100, a.joy + ev.quality * 25 + T.eventBonus);
+    a.joy = Math.max(0, Math.min(100, a.joy + ev.quality * 25 + T.eventBonus));
   }
   // качество бутика
   if (p && p.booth) {
     const dJoy = p.quality * 25;
     a.joy = Math.max(0, Math.min(100, a.joy + dJoy));
-    if (dJoy > 15) { a.evangelBooth = a.goalPoi; a.evangelistUntil = world.t + T.evangelistTime; }
+    if (dJoy > 15) { a.evangelBooth = a.goalPoi; a.evangelistUntil = world.t + T.evangelistTime; a.sociability = Math.min(1, a.sociability * 1.5); }
     else if (dJoy < -15) { a.stress = Math.min(100, a.stress + 8); a.complainBooth = a.goalPoi; a.complainUntil = world.t + T.evangelistTime; }
   }
   (a.visitedPois ??= new Set()).add(a.goalPoi);
