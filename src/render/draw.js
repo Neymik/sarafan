@@ -1,4 +1,4 @@
-import { T, gameClock } from '../data/tuning.js';
+import { T } from '../data/tuning.js';
 const S = T.pxPerMeter;
 
 export function draw(ctx, world) {
