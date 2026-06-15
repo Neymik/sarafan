@@ -90,7 +90,7 @@ export function finishTalk(world, a, b) {
   const my = bActive ? (a.y + bActive.y) / 2 : a.y;
   if (bActive) {
     const topic = pickTopic(a, bActive, world);
-    const nearVol = (world.volunteers ?? []).some(v => (v.x - mx) ** 2 + (v.y - my) ** 2 < T.volunteerRadius ** 2);
+    const nearVol = world.agents.some(v => v.kind === 'volunteer' && (v.x - mx) ** 2 + (v.y - my) ** 2 < T.volunteerRadius ** 2);
     if (topic) {
       for (const x of peers) if (Math.random() < T.talkTransfer) applyTopic(x, topic, world.t, nearVol);
       // зеваки

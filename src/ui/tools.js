@@ -1,6 +1,6 @@
 import { T } from '../data/tuning.js';
 import { randomWalkableNear, isWalkable } from '../sim/flowfield.js';
-import { enterLost } from '../sim/agent.js';
+import { enterLost, makeAgent } from '../sim/agent.js';
 import { openComposer } from './boards.js';
 
 const px2m = (canvas, e) => {
@@ -10,13 +10,13 @@ const px2m = (canvas, e) => {
 
 export function initTools(canvas, world) {
   world.ui = { mode: 'cursor', dragging: null, holdTimer: null, holdAgent: null,
-    paUntil: 0, rumorUntil: 0, shiftUsed: false, dragFrom: null };
-  world.volunteers = [];
+    paUntil: 0, rumorUntil: 0, shiftUsed: false, dragFrom: null, dragCooldownUntil: 0 };
 
   const bar = document.getElementById('toolbar');
   bar.innerHTML = `
     <button data-mode="cursor" class="active">Курсор</button>
     <button data-mode="barrier">Барьер</button>
+    <button id="clearBarriersBtn">🧹 Снять барьеры</button>
     <button data-mode="volunteer">Волонтёр</button>
     <span style="width:12px"></span>
     <button id="paBtn">📢 Громкая связь</button>
@@ -36,7 +36,15 @@ export function initTools(canvas, world) {
     ru.disabled = ruLeft > 0; ru.textContent = ruLeft > 0 ? `🗣 ${ruLeft}с` : '🗣 Вброс слуха';
     const sh = document.getElementById('shiftBtn');
     sh.disabled = world.ui.shiftUsed;
+    const cur = bar.querySelector('[data-mode="cursor"]');
+    const dragLeft = Math.ceil(world.ui.dragCooldownUntil - world.t);
+    if (cur) cur.textContent = dragLeft > 0 ? `Курсор ⏳${dragLeft}с` : 'Курсор';
   }, 250);
+
+  document.getElementById('clearBarriersBtn').onclick = () => {
+    for (let i = 0; i < T.barrierSlots; i++) if (world.fields.slots[i]) world.fields.clearSlot(i);
+    world.syncObstacles();
+  };
 
   document.getElementById('shiftBtn').onclick = () => {
     if (world.ui.shiftUsed) return;
@@ -88,10 +96,11 @@ export function initTools(canvas, world) {
     if (world.ui.mode === 'barrier') return placeBarrier(world, m);
     if (world.ui.mode === 'volunteer') return placeVolunteer(world, m);
     // cursor: возможный драг — ждём dragHold
+    if (world.t < world.ui.dragCooldownUntil) return;
     let best = null, bd = 1;
     for (const a of world.agents) {
       const d = Math.hypot(a.x - m.x, a.y - m.y);
-      if (d < bd && (a.kind === 'visitor')) { bd = d; best = a; }
+      if (d < bd) { bd = d; best = a; }
     }
     if (!best) return;
     world.ui.holdAgent = best;
@@ -115,7 +124,9 @@ export function initTools(canvas, world) {
     const g = world.fields.gridFor(0);
     if (!isWalkable(g, a.x, a.y)) { const p = randomWalkableNear(g, a.x, a.y, 4); a.x = p.x; a.y = p.y; }
     a.vx = a.vy = 0;
-    if (world.ui.dragFrom && Math.hypot(a.x - world.ui.dragFrom.x, a.y - world.ui.dragFrom.y) > 1) {
+    world.ui.dragCooldownUntil = world.t + T.dragCooldown;
+    if (world.ui.dragFrom && Math.hypot(a.x - world.ui.dragFrom.x, a.y - world.ui.dragFrom.y) > 1
+        && (a.kind === 'visitor' || a.friendId)) {
       enterLost(a, world, null);   // реально перенесён — «да где я вообще?!»
     }
     world.ui.dragFrom = null;
@@ -142,9 +153,14 @@ function placeBarrier(world, m) {
 }
 
 function placeVolunteer(world, m) {
-  const i = world.volunteers.findIndex(v => Math.hypot(v.x - m.x, v.y - m.y) < 1);
-  if (i >= 0) { world.volunteers.splice(i, 1); return; }
-  if (world.volunteers.length >= T.volunteerMax) { world.banner = { text: 'Волонтёры кончились (макс 2)', t: world.t }; return; }
+  const near = world.agents.find(a => a.kind === 'volunteer' && Math.hypot(a.x - m.x, a.y - m.y) < 1);
+  if (near) { near.despawn = true; return; }
+  if (world.agents.filter(a => a.kind === 'volunteer').length >= T.volunteerMax) {
+    world.banner = { text: 'Волонтёры кончились (макс 2)', t: world.t }; return;
+  }
   if (!isWalkable(world.fields.gridFor(0), m.x, m.y)) return;
-  world.volunteers.push({ x: m.x, y: m.y });
+  const v = makeAgent(world, world.nextId = (world.nextId ?? 0) + 1);
+  v.kind = 'volunteer'; v.x = m.x; v.y = m.y; v.maxSpeed = 2.2; v.sociability = 0;
+  v.beliefs.knownPois = new Set(Object.keys(world.map.pois));
+  world.agents.push(v);
 }
