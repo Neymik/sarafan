@@ -11,7 +11,7 @@ export function pickTopic(a, b, world) {
   for (const src of [a, b]) {
     for (const k of src.beliefs.knownPois) topics.push({ kind: 'poi', poi: k });
     for (const j of src.beliefs.jamMarks) topics.push({ kind: 'jam', jam: { ...j } });
-    topics.push({ kind: 'event', ev: { ...src.beliefs.events.concert } });
+    for (const id of src.beliefs.knownEvents) topics.push({ kind: 'event', id, time: src.beliefs.eventTime[id] });
     const ob = src.obstMask & (world.obstMask ?? ~0);
     if (ob) topics.push({ kind: 'obst', mask: ob });
   }
@@ -25,14 +25,10 @@ export function applyTopic(agent, topic, t, noMutation = false) {
     case 'jam': addJamMark(agent.beliefs, { ...topic.jam }); break;
     case 'obst': agent.obstMask |= topic.mask; break;
     case 'event': {
-      const mine = agent.beliefs.events.concert;
-      if (topic.ev.learnedAt > mine.learnedAt) {
-        agent.beliefs.events.concert = { ...topic.ev };
-        if (!noMutation && Math.random() < T.rumorMutation) {
-          const m = agent.beliefs.events.concert;
-          if (Math.random() < 0.5) m.time += 600; else m.status = 'cancelled';
-          m.learnedAt -= 1; // слух «старше» правды — правда побеждает при встрече
-        }
+      const cur = agent.beliefs.eventTime[topic.id];
+      if (cur === undefined || (topic.learnedAt ?? 0) >= 0) {  // принимаем знание
+        agent.beliefs.knownEvents.add(topic.id);
+        if (topic.time !== undefined) agent.beliefs.eventTime[topic.id] = topic.time;
       }
       break;
     }

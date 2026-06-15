@@ -47,7 +47,7 @@ export function eventRescheduleTick(world, forceId) {
 // срочность известного агенту эвента в [0..1.5] и его POI (для утилити/желаний)
 export function knownEventUrgency(a, world) {
   let best = 0, poi = null;
-  for (const ev of world.events) {
+  for (const ev of (world.events ?? [])) {
     if (!a.beliefs.knownEvents.has(ev.id) || ev.status === 'over' || a.attendedEvents?.has(ev.id)) continue;
     if (!a.beliefs.knownPois.has(ev.poi)) continue;
     const bt = a.beliefs.eventTime[ev.id] ?? ev.time;

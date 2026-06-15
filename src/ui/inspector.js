@@ -24,9 +24,14 @@ export function updateInspector(world) {
   const el = document.getElementById('inspector');
   const a = world.selected;
   if (!a) { el.style.display = 'none'; return; }
-  const bel = a.beliefs.events.concert, f = world.facts.concert;
   const bar = v => '█'.repeat(Math.round(v / 10)).padEnd(10, '·');
   const totalPois = Object.keys(world.map.pois).length;
+  const lag = knowledgeLag(a, world);
+  const evLines = (world.events ?? []).filter(e => a.beliefs.knownEvents.has(e.id)).map(e => {
+    const bt = a.beliefs.eventTime[e.id] ?? e.time;
+    const stale = bt !== e.time ? '⚠' : '';
+    return `  ${e.title.slice(0,14)} ${fmtClock(13*3600+bt)} ${stale}`;
+  }).join('\n') || '  (не знает эвентов)';
   el.style.display = 'block';
   el.textContent =
 `#${a.id} ${a.kind === 'visitor' ? a.preset : a.kind}${a.superfan ? ' 🔥суперфан' : ''}${a.searching ? ' 💔ищет друга' : ''}  [${a.activity}]
@@ -40,8 +45,8 @@ politeness ${a.politeness.toFixed(2)}  conformity ${a.conformity.toFixed(2)}
 mass ${a.mass.toFixed(1)}  speed ${a.maxSpeed.toFixed(1)}  agility ${a.agility.toFixed(1)}
 ─ знание ─
 POI: ${a.beliefs.knownPois.size}/${totalPois}  jamMarks: ${a.beliefs.jamMarks.length}  ленты: ${a.obstMask}
-концерт: верит ${fmtClock(bel.time)}/${bel.status}
-правда:  ${fmtClock(f.time)}/${f.status} ${knowledgeLag(a, world) > 0 ? '⚠ ОТСТАЛ' : '✓'}
+─ эвенты ─
+${evLines}${lag > 0 ? ' ⚠ ОТСТАЛ' : ''}
 ─ цель ─
 ${a.goalPoi ? world.map.pois[a.goalPoi].label + (a.smartUntil > world.t ? ' [обходит]' : ' [по памяти]') : (a.target ? 'локальная точка' : '—')}
 visited ${a.visitedCount}/${a.satThreshold}`;

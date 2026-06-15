@@ -117,14 +117,14 @@ test('dialogue: шанс зеваки падает с расстоянием д�
 });
 
 test('dialogue: тема из объединения знаний, applyTopic учит', () => {
-  const mk = () => ({ kind: 'visitor', beliefs: { knownPois: new Set(), jamMarks: [], events: { concert: { time: 1, place: 'stage', status: 'on', learnedAt: 5 } } }, obstMask: 0 });
+  const mk = () => ({ kind: 'visitor', beliefs: { knownPois: new Set(), jamMarks: [], knownEvents: new Set(['concert']), eventTime: { concert: 1 } }, obstMask: 0 });
   const a = mk(), b = mk();
   a.beliefs.knownPois.add('food');
-  const t = pickTopic(a, b, { map: { pois: { food: {} } }, obstMask: 0 });
+  const t = pickTopic(a, b, { map: { pois: { food: {} } }, obstMask: 0, events: [] });
   assert.ok(t, 'тема нашлась');
   applyTopic(b, t, 10);
   if (t.kind === 'poi') assert.ok(b.beliefs.knownPois.has('food'));
-  if (t.kind === 'event') assert.ok(b.beliefs.events.concert.learnedAt >= 5);
+  if (t.kind === 'event') assert.ok(b.beliefs.knownEvents.has(t.id));
 });
 
 test('queue: слоты вдоль грани от front-точки', () => {
@@ -239,17 +239,19 @@ test('lostPair: разлука включает поиск, встреча ле�
   assert.ok(a.stress <= 10 && b.stress <= 10, 'отлегло');
 });
 
-test('слух: заражает одного с пометкой свежести', () => {
+test('слух: заражает одного с новым временем эвента', () => {
   const world = { t: 50, map: MAP, agents: [], hash: new SpatialHash(1),
-    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, flashes: [] };
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, flashes: [],
+    events: makeEvents(MAP) };
   for (let i = 0; i < 10; i++) { const a = makeAgent(world, i); a.sociability = 0.9; world.agents.push(a); }
   injectSpontaneousRumor(world);
+  // слух: один агент получил изменённое время концерта
+  const concertEv = world.events.find(e => e.id === 'concert');
   const infected = world.agents.filter(a => {
-    const c = a.beliefs.events.concert;
-    return c.status === 'cancelled' || c.time !== world.facts.concert.time;
+    const bt = a.beliefs.eventTime['concert'];
+    return bt !== undefined && bt !== concertEv.time;
   });
   assert.equal(infected.length, 1, 'ровно один зачинщик');
-  assert.equal(infected[0].beliefs.events.concert.learnedAt, world.t, 'слух свежее правды');
 });
 
 import { makeEvents, eventStatusTick, eventRescheduleTick, knownEventUrgency } from '../src/data/events.js';
@@ -351,6 +353,14 @@ test('events: reschedule двигает время upcoming, не трогает
   eventRescheduleTick(world, ev.id);                 // форс конкретного
   assert.notEqual(ev.time, before);
   assert.ok(ev.changedAt === world.t);
+});
+
+test('миграция: агент без знания эвентов не имеет срочности', () => {
+  const world = { t: 0, map: MAP, events: makeEvents(MAP),
+    agents: [], obstMask: 0, };
+  const a = makeAgent(world, 1);
+  a.beliefs.knownEvents = new Set();
+  assert.equal(knownEventUrgency(a, world).urgency, 0);
 });
 
 let fail = 0;

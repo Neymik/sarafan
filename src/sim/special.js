@@ -19,7 +19,7 @@ export function spawnSpecial(world, kind) {
   const a = spawnAt(world, ['exitMain', 'exitW', 'exitE'][(Math.random() * 3) | 0]);
   switch (kind) {
     case 'superfan':
-      a.superfan = true; a.stubborn = 1; a.wantsConcert = true;
+      a.superfan = true; a.stubborn = 1;
       a.satThreshold = 99; // не уходит «насытившись»
       break;
     case 'streamer':
@@ -217,10 +217,12 @@ export function injectSpontaneousRumor(world) {
   const cands = world.agents.filter(a => a.kind === 'visitor' && a.sociability > 0.7 && a.perception > 0);
   if (!cands.length) return;
   const a = cands[(Math.random() * cands.length) | 0];
-  const f = world.facts.concert;
-  a.beliefs.events.concert = Math.random() < 0.5
-    ? { ...f, status: 'cancelled', learnedAt: world.t }
-    : { ...f, time: f.time + 1800, learnedAt: world.t };
+  const ce = (world.events ?? []).find(e => e.id === 'concert');
+  if (ce && ce.status !== 'over') {
+    // слух: сдвинуть время концерта на +30 мин у этого агента
+    a.beliefs.knownEvents.add('concert');
+    a.beliefs.eventTime['concert'] = ce.time + 1800;
+  }
   let nearest = '', bd = Infinity;
   for (const [k, p] of Object.entries(world.map.pois)) {
     const d2 = (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2;

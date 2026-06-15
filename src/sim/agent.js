@@ -1,6 +1,7 @@
 import { T, gameClock } from '../data/tuning.js';
 import { makeBeliefs, probeJamAhead, jamMarkAhead, addJamMark, boardLocalLesson } from './knowledge.js';
 import { randomWalkableNear } from './flowfield.js';
+import { knownEventUrgency } from '../data/events.js';
 
 export const PRESETS = [ // веса [goto, wander, phone, rest], доля известной карты
   { name: 'planner',  w: [1.4, 0.6, 0.4, 0.8], mapKnown: 1.0 },
@@ -24,7 +25,6 @@ export function makeAgent(world, id) {
     conformity: 0.2 + Math.random() * 0.6,
     politeness: Math.random(),
     perception: 1,
-    wantsConcert: Math.random() < 0.7,
     joy: T.joyStart + Math.random() * T.joyJitter,
     attendedEvents: new Set(),
     evangelBooth: null, evangelistUntil: 0, complainBooth: null, complainUntil: 0,
@@ -82,9 +82,6 @@ function startExplore(a, world) {
 }
 
 function arrive(a, world) { // дошёл до goalPoi (несервисного)
-  // успел на идущий концерт — насмотрелся, больше не рвётся обратно
-  const belC = a.beliefs.events.concert;
-  if (a.goalPoi === belC.place && belC.status === 'started') a.wantsConcert = false;
   (a.visitedPois ??= new Set()).add(a.goalPoi);
   a.visitedCount++;
   a.poiCooldown[a.goalPoi] = world.t + T.poiCooldownTime;
@@ -106,36 +103,19 @@ export function think(a, world) {
   if (a.activity === 'lost') { thinkLost(a, world); return; }
 
   if (a.superfan) {
-    const bel = a.beliefs.events.concert;
-    if (bel.status === 'over' || bel.status === 'cancelled' || world.facts.concert.status === 'over') {
-      a.superfan = false;                                  // шоу кончилось — снова обычный гость
-      if (a.browseUntil > world.t + 60) a.browseUntil = 0;
-      a.satThreshold = 3 + (Math.random() * 5 | 0);
-    } else {
-      const soon = bel.status === 'started' || (bel.status === 'on' && gameClock(world.t) >= bel.time - 1800);
+    const ce = world.events?.find(e => e.id === 'concert');
+    const over = !ce || ce.status === 'over';
+    if (over) { a.superfan = false; if (a.browseUntil > world.t + 60) a.browseUntil = 0; }
+    else {
+      const bt = a.beliefs.eventTime?.['concert'] ?? ce.time;
+      const soon = ce.status === 'live' || gameClock(world.t) >= bt - 1800;
+      a.beliefs.knownEvents.add('concert');           // суперфан всегда знает про концерт
       if (soon) {
-        if (nearPoi(a, world, 'stage')) {
-          a.activity = 'browse'; a.browseUntil = world.t + 9999; a.goalPoi = null;
-          return;
-        }
+        if (nearPoi(a, world, 'stage')) { a.activity = 'browse'; a.browseUntil = world.t + 9999; a.goalPoi = null; return; }
         if (a.activity !== 'queue' && a.activity !== 'mobbing') { a.activity = 'goto'; a.goalPoi = 'stage'; a.target = null; return; }
       } else if (!a.visitedPois?.has('autograph') && a.activity !== 'queue' && a.activity !== 'mobbing' && a.goalPoi !== 'autograph') {
         a.activity = 'goto'; a.goalPoi = 'autograph'; a.target = null; return;
       }
-    }
-  }
-
-  // обман ожиданий (как v1, по близости к POI)
-  const f = world.facts.concert, belC = a.beliefs.events.concert;
-  if (a.activity === 'goto' && a.goalPoi === belC.place && nearPoi(a, world, belC.place) &&
-      (f.status !== belC.status || f.time !== belC.time)) {
-    a.beliefs.events.concert = { ...f, learnedAt: world.t };
-    const benign = f.status === 'started' && belC.status === 'on' && f.time === belC.time;
-    if (!benign) {
-      a.deceivedUntil = world.t + 15;
-      a.stress = Math.min(100, a.stress + 25);
-      a.activity = 'wander'; a.goalPoi = null; a.target = null;
-      return;
     }
   }
 
@@ -191,12 +171,8 @@ export function think(a, world) {
   }
 
   // utility
-  const bel = a.beliefs.events.concert;
-  let goto_ = 0;
-  if (a.wantsConcert && (bel.status === 'on' || bel.status === 'started') && !nearPoi(a, world, bel.place)) {
-    const left = bel.time - gameClock(world.t);
-    goto_ = Math.max(0, Math.min(1.5, 1.5 * (1 - left / 1800)));
-  }
+  const ev = knownEventUrgency(a, world);
+  const goto_ = Math.min(1.5, ev.urgency * 0.3);
   const u = {
     goto: a.weights[0] * goto_,
     wander: a.weights[1] * (0.3 + a.boredom / 200),
@@ -213,8 +189,8 @@ export function think(a, world) {
   if (best === a.activity && (a.goalPoi || a.target)) return;
   switch (best) {
     case 'goto':
-      if (a.beliefs.knownPois.has(bel.place)) { a.goalPoi = bel.place; a.target = null; }
-      else { enterLost(a, world, bel.place); return; }
+      if (ev.poi && a.beliefs.knownPois.has(ev.poi)) { a.goalPoi = ev.poi; a.target = null; }
+      else { a.activity = 'wander'; a.goalPoi = null; }   // знал эвент, но не место — побредёт/исследует
       break;
     case 'wander': {
       const pick = weightedPickPoi(a, world);
@@ -262,7 +238,7 @@ function thinkLost(a, world) {
     a.activity = 'wander'; return;
   }
   // 4) таймаут
-  if (world.t - a.lostSince > T.lostTimeout) { a.wantsConcert = false; a.lostGoal = null; a.activity = 'wander'; return; }
+  if (world.t - a.lostSince > T.lostTimeout) { a.lostGoal = null; a.activity = 'wander'; return; }
 }
 
 export function enterLost(a, world, goalKey) {

@@ -2,7 +2,7 @@ import { T } from '../data/tuning.js';
 import { isWalkable } from './flowfield.js';
 
 export function makeWorldFacts() {
-  return { concert: { time: 14.5 * 3600, place: 'stage', status: 'on', changedAt: 0 } };
+  return {};
 }
 
 export function makeBeliefs(world, mapKnown) {
@@ -18,7 +18,6 @@ export function makeBeliefs(world, mapKnown) {
   return {
     knownPois: known, jamMarks: [],
     knownEvents, eventTime,
-    events: { concert: { time: 14.5 * 3600, place: 'stage', status: 'on', learnedAt: 0 } },
   };
 }
 
@@ -38,12 +37,14 @@ export function eyesUpdate(a, world) {
       a.stress = Math.min(100, a.stress + 10); // упс, перекрыто
     }
   });
-  // вижу место события своими глазами — узнаю его настоящий статус
-  const f = world.facts.concert, bel = B.events.concert;
-  if (f.status !== bel.status || f.time !== bel.time) {
-    const p = world.map.pois[f.place];
-    if (p && (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2 < T.sightRadius ** 2)
-      B.events.concert = { ...f, learnedAt: world.t };
+  // вижу место события своими глазами — узнаю правду об эвенте
+  for (const ev of (world.events ?? [])) {
+    if (ev.status === 'over') continue;
+    const p = world.map.pois[ev.poi];
+    if (!p) continue;
+    if ((p.fx - a.x) ** 2 + (p.fy - a.y) ** 2 < T.sightRadius ** 2) {
+      B.knownEvents.add(ev.id); B.eventTime[ev.id] = ev.time;   // увидел вживую — узнал правду
+    }
   }
   if (B.jamMarks.length) B.jamMarks = B.jamMarks.filter(j => world.t - j.learnedAt < T.jamMarkTtl);
 }
@@ -107,7 +108,11 @@ export function boardLocalLesson(world, board) {
 }
 
 export function knowledgeLag(a, world) {
-  const f = world.facts.concert, b = a.beliefs.events.concert;
-  const stale = f.time !== b.time || f.place !== b.place || f.status !== b.status;
-  return stale ? world.t - f.changedAt : 0;
+  let lag = 0;
+  for (const ev of (world.events ?? [])) {
+    if (!a.beliefs.knownEvents.has(ev.id)) continue;
+    const bt = a.beliefs.eventTime[ev.id];
+    if (bt !== undefined && bt !== ev.time) lag = Math.max(lag, world.t - ev.changedAt);
+  }
+  return lag;
 }

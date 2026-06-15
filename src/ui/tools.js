@@ -41,9 +41,12 @@ export function initTools(canvas, world) {
   document.getElementById('shiftBtn').onclick = () => {
     if (world.ui.shiftUsed) return;
     world.ui.shiftUsed = true;
-    world.facts.concert.time += 1800;
-    world.facts.concert.changedAt = world.t;
-    world.banner = { text: 'Концерт сдвинут на +30 мин (никто пока не знает!)', t: world.t };
+    const ce = (world.events ?? []).find(e => e.id === 'concert');
+    if (ce && ce.status !== 'over') {
+      ce.time += 1800;
+      ce.changedAt = world.t;
+      world.banner = { text: 'Концерт сдвинут на +30 мин (никто пока не знает!)', t: world.t };
+    }
   };
   document.getElementById('paBtn').onclick = e => {
     if (world.t < world.ui.paUntil) return;

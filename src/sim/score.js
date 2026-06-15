@@ -4,13 +4,20 @@ export function initScore(world) {
   world.score = {
     incidents: 0, angry: 0,
     press: { pos: 0, neg: 0 },
-    concertWant: 0, concertHit: 0,
+    concertWant: 0, concertHit: 0, concertCaptured: false,
     stressHist: [],
   };
 }
 
 export function scoreTick(world, dt) {
   const s = world.score;
+  const ce = world.events?.find(e => e.id === 'concert');
+  if (ce && ce.status === 'live' && !s.concertCaptured) {
+    s.concertCaptured = true;
+    const st = world.map.pois.stage;
+    s.concertWant = world.agents.filter(a => a.beliefs?.knownEvents?.has('concert')).length;
+    s.concertHit = world.agents.filter(a => (a.x - st.fx) ** 2 + (a.y - st.fy) ** 2 < 225).length;
+  }
   s.histTimer = (s.histTimer ?? 0) - dt;
   if (s.histTimer <= 0) {
     s.histTimer = 1;
