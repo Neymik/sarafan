@@ -6,7 +6,7 @@ import { T } from '../data/tuning.js';
 export function incidentsTick(world, dt) {
   world.hot ??= new Map();
   world.incidentEnds ??= {};
-  world.incTimer = (world.incTimer ?? 0) - dt;
+  world.incTimer = (world.incTimer ?? 2) - dt;
   if (world.incTimer <= 0 && world.fields.density) {
     world.incTimer = 2;
     const d = world.fields.density, g = world.fields.gridFor(0);
