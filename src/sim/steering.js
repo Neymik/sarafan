@@ -16,6 +16,21 @@ export function simTick(world, dt) {
     a.x = Math.max(a.radius, Math.min(w - a.radius, a.x));
     a.y = Math.max(a.radius, Math.min(h - a.radius, a.y));
   }
+  updateStress(world, dt);
+}
+
+function updateStress(world, dt) {
+  for (const a of world.agents) {
+    let ds = -T.stressDecay;
+    ds += T.stressFromDensity * Math.max(0, a.density - T.comfortN);
+    if (a.contact) ds += T.stressFromContact;
+    // «не могу продвинуться»
+    const moving = Math.hypot(a.vx, a.vy);
+    if (a.activity === 'goto' && moving < 0.2 * a.maxSpeed) a.blockedTime += dt;
+    else a.blockedTime = 0;
+    if (a.blockedTime > T.blockedStressAfter) ds += T.blockedStressRate;
+    a.stress = Math.max(0, Math.min(100, a.stress + ds * dt));
+  }
 }
 
 export function currentTarget(a, world) {
@@ -35,7 +50,25 @@ function stepAgent(a, world, dt) {
     const speed = a.maxSpeed * speedFactor(a.density) * (a.activity === 'wander' ? 0.6 : 1);
     dx = ex / d * speed; dy = ey / d * speed;
   }
-  // [Task 6: alignment + personal space вставляются здесь]
+  // течение с толпой
+  if (a.density >= T.alignmentThreshold) {
+    let avx = 0, avy = 0, n = 0;
+    for (const b of a.neighbors) if (b !== a) { avx += b.vx; avy += b.vy; n++; }
+    if (n) {
+      const w = Math.min(0.8, a.conformity * a.density / T.jamN);
+      dx = dx * (1 - w) + (avx / n) * w;
+      dy = dy * (1 - w) + (avy / n) * w;
+    }
+  }
+  // личная зона
+  for (const b of a.neighbors) if (b !== a) {
+    const ox = a.x - b.x, oy = a.y - b.y, d = Math.hypot(ox, oy);
+    const want = a.personalSpace + a.radius + b.radius;
+    if (d > 1e-3 && d < want) {
+      const f = T.personalSpaceForce * (1 - d / want);
+      dx += ox / d * f; dy += oy / d * f;
+    }
+  }
   // [Task 7: рефлекс уступания вставляется здесь]
   const k = Math.min(1, a.agility * turnFactor(a.density) * dt);
   a.vx += (dx - a.vx) * k; a.vy += (dy - a.vy) * k;
