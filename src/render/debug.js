@@ -2,6 +2,7 @@ import { T } from '../data/tuning.js';
 const S = T.pxPerMeter;
 
 export function drawDebug(ctx, world) {
+  if (!world.map.edges) return; // v1-оверлей; переписывается в v2 Task 11
   // тепло плотности
   for (const a of world.agents) {
     if (a.density > T.comfortN) {
