@@ -313,6 +313,18 @@ test('steerAround: цель за стеной → направление пов�
     'итоговое направление не бьёт в стену');
 });
 
+test('booths: острова стали бутиками-POI с хайпом и качеством', () => {
+  const booths = Object.values(MAP.pois).filter(p => p.booth);
+  assert.ok(booths.length >= 12, 'много бутиков: ' + booths.length);
+  for (const b of booths) {
+    assert.ok(b.w && b.h && b.face && b.fx !== undefined, 'у бутика есть тело и фронт');
+    assert.ok(b.hype > 0 && b.weight === b.hype, 'хайп = вес');
+    assert.ok(b.quality >= -1 && b.quality <= 1, 'качество в [-1,1]');
+  }
+  const g = buildGrid(MAP, [null,null,null,null,null], 0);
+  for (const b of booths) assert.equal(isWalkable(g, b.fx, b.fy), true, 'фронт проходим');
+});
+
 let fail = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log('ok -', name); }

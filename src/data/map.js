@@ -10,9 +10,21 @@ export const MAP = {
     wcR:       { x: 57, y: 14, w: 2,  h: 3, face: 'W', label: 'Туалет (вост.)', weight: 1 },
     merch2:    { x: 57, y: 20, w: 2,  h: 6, face: 'W', label: 'Мерч B',         weight: 2,   service: { rate: 6 }, stock: 15 },
     depot:     { x: 57, y: 30, w: 2,  h: 6, face: 'W', label: 'СКЛАД',          weight: 0,   staff: true },
-    boothA:    { x: 15, y: 15, w: 6,  h: 3, face: 'S', label: 'Стенд студии',   weight: 1.5 },
-    boothB:    { x: 33, y: 21, w: 6,  h: 3, face: 'S', label: 'Стенд издателя', weight: 1.5 },
-    boothC:    { x: 24, y: 27, w: 6,  h: 3, face: 'N', label: 'Инди-уголок',    weight: 1.5 },
+    boothA: { x: 15, y: 15, w: 6, h: 3, face: 'S', label: 'Стенд студии',   booth: true },
+    boothB: { x: 33, y: 21, w: 6, h: 3, face: 'N', label: 'Стенд издателя', booth: true },
+    boothC: { x: 24, y: 27, w: 6, h: 3, face: 'S', label: 'Инди-уголок',    booth: true },
+    b1:  { x: 6,  y: 15, w: 6, h: 3, face: 'S', label: 'Бутик 1',  booth: true },
+    b2:  { x: 24, y: 15, w: 6, h: 3, face: 'S', label: 'Бутик 2',  booth: true },
+    b3:  { x: 33, y: 15, w: 6, h: 3, face: 'S', label: 'Бутик 3',  booth: true },
+    b4:  { x: 42, y: 15, w: 6, h: 3, face: 'S', label: 'Бутик 4',  booth: true },
+    b5:  { x: 6,  y: 21, w: 6, h: 3, face: 'N', label: 'Бутик 5',  booth: true },
+    b6:  { x: 15, y: 21, w: 6, h: 3, face: 'N', label: 'Бутик 6',  booth: true },
+    b7:  { x: 24, y: 21, w: 6, h: 3, face: 'N', label: 'Бутик 7',  booth: true },
+    b8:  { x: 42, y: 21, w: 6, h: 3, face: 'N', label: 'Бутик 8',  booth: true },
+    b9:  { x: 6,  y: 27, w: 6, h: 3, face: 'S', label: 'Бутик 9',  booth: true },
+    b10: { x: 15, y: 27, w: 6, h: 3, face: 'S', label: 'Бутик 10', booth: true },
+    b11: { x: 33, y: 27, w: 6, h: 3, face: 'S', label: 'Бутик 11', booth: true },
+    b12: { x: 42, y: 27, w: 6, h: 3, face: 'S', label: 'Бутик 12', booth: true },
     food:      { x: 6,  y: 38, w: 12, h: 3, face: 'N', label: 'Фудкорт',        weight: 3,   service: { rate: 8 } },
     info:      { x: 20, y: 39, w: 5,  h: 3, face: 'N', label: 'Инфостойка',     weight: 1 },
     photo:     { x: 44, y: 39, w: 6,  h: 3, face: 'N', label: 'Фотозона',       weight: 2.5 },
@@ -20,12 +32,8 @@ export const MAP = {
     exitW:     { x: 1.5,  y: 36.5, label: 'Западный вход',  weight: 0, exit: true },
     exitE:     { x: 58.2, y: 10,   label: 'Восточный вход', weight: 0, exit: true },
   },
-  // безымянные острова будок: 3 ряда × 5, проходы 3 м (именные — в pois выше)
-  blocks: [
-    { x: 6, y: 15, w: 6, h: 3 }, { x: 24, y: 15, w: 6, h: 3 }, { x: 33, y: 15, w: 6, h: 3 }, { x: 42, y: 15, w: 6, h: 3 },
-    { x: 6, y: 21, w: 6, h: 3 }, { x: 15, y: 21, w: 6, h: 3 }, { x: 24, y: 21, w: 6, h: 3 }, { x: 42, y: 21, w: 6, h: 3 },
-    { x: 6, y: 27, w: 6, h: 3 }, { x: 15, y: 27, w: 6, h: 3 }, { x: 33, y: 27, w: 6, h: 3 }, { x: 42, y: 27, w: 6, h: 3 },
-  ],
+  // все острова-будки теперь в pois (booth: true) — solidRects их подхватит
+  blocks: [],
   boards: [{ x: 28, y: 41 }, { x: 30, y: 19 }, { x: 13, y: 25 }, { x: 45, y: 25 }],
   spawn: { x: 30, y: 41.5 },
 };
@@ -47,5 +55,11 @@ export function solidRects(map) {
   return [...map.blocks, ...Object.values(map.pois ?? {}).filter(p => !p.exit && p.w)];
 }
 for (const p of Object.values(MAP.pois)) { const f = poiFront(p); p.fx = f.x; p.fy = f.y; }
+for (const p of Object.values(MAP.pois)) {
+  if (!p.booth) continue;
+  p.hype = 0.5 + Math.random() * 2.5;
+  p.quality = Math.random() * 2 - 1;
+  p.weight = p.hype;
+}
 export const EXITS = Object.keys(MAP.pois).filter(k => MAP.pois[k].exit);
 // service rate: реальные сек на клиента = rate * 10 / T.timeScale
