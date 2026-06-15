@@ -1,0 +1,33 @@
+export const T = {
+  simHz: 30,
+  timeScale: 30,          // 1 реальная сек = 30 игровых сек; день 13:00→14:30 = 3 мин
+  pxPerMeter: 16,
+  agentCount: 400,
+  // плотность (n = соседей в радиусе densityRadius)
+  densityRadius: 2.0,
+  comfortN: 3,
+  jamN: 8,
+  // силы
+  personalSpaceForce: 2.0,
+  alignmentThreshold: 4,
+  // нужды/стресс (в единицах за реальную секунду)
+  fatigueRate: 0.6, boredomRate: 1.2, phoneItchRate: 1.0,
+  stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 1.5,
+  blockedStressAfter: 3, blockedStressRate: 2.0,
+  // знание
+  sightRadius: 8,
+  osmosisChance: 0.01,    // за тик на соседа
+  rumorMutation: 0.1,
+  boardRadius: 6,
+  lagRed: 20,             // реальных сек устаревания до красного
+  // мозг
+  utilityTickEvery: 1.5,  // реальных сек
+  hysteresis: 1.3,
+  // lost
+  lostStressSpike: 25, lostNeighborStress: 5,
+  phoneMapBase: 8, phoneMapDensityK: 0.6, lostTimeout: 25,
+};
+export function speedFactor(n) { return Math.max(0.15, 1 - Math.max(0, n - T.comfortN) * 0.09); }
+export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }
+export function gameClock(t)   { return 13 * 3600 + t * T.timeScale; } // игровые секунды
+export function fmtClock(gs)   { const h = (gs / 3600) | 0, m = ((gs % 3600) / 60) | 0; return `${h}:${String(m).padStart(2, '0')}`; }
