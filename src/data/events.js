@@ -1,7 +1,4 @@
-import { T, gameClock } from './tuning.js';
-
-// game-seconds elapsed since 13:00 (events use offset from 13:00, gameClock returns absolute)
-function gameOffset(t) { return gameClock(t) - 13 * 3600; }
+import { T, gameOffset } from './tuning.js';
 
 // Стартовое расписание (организатор видит все, агенты — частично). time/dur в игр. сек от 13:00.
 export function makeEvents(map) {

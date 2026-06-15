@@ -44,7 +44,7 @@ export const T = {
   litterEvery: 2, litterChance: 0.3, litterMax: 40, litterStress: 0.3, litterJamCell: 4, // агентов в клетке 1м² для мусора (физический максимум ~6)
   // эвенты
   rumorEvery: 45, rumorJitter: 15,
-  incidentDensity: 10, incidentAfter: 10, incidentDur: 20, incidentStress: 15, incidentRadius: 5,
+  incidentDensity: 7, incidentAfter: 6, incidentDur: 20, incidentStress: 15, incidentRadius: 5,
   // инструменты игрока
   promoFactor: 3, promoTime: 60,
   paCooldown: 45, paStress: 5,
@@ -73,4 +73,5 @@ export const T = {
 export function speedFactor(n) { return Math.max(0.25, 1 - Math.max(0, n - T.comfortN) * 0.09); }
 export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }
 export function gameClock(t)   { return 13 * 3600 + t * T.timeScale; }
+export function gameOffset(t)  { return t * T.timeScale; }  // game-seconds since 13:00 (offset); gameClock = 13*3600 + gameOffset
 export function fmtClock(gs)   { const h = (gs / 3600) | 0, m = ((gs % 3600) / 60) | 0; return `${h}:${String(m).padStart(2, '0')}`; }

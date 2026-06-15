@@ -1,5 +1,6 @@
 import { T, fmtClock } from './tuning.js';
 import { boardLocalLesson, addJamMark } from '../sim/knowledge.js';
+import { isWalkable } from '../sim/flowfield.js';
 
 // Конструктор: applyFn для табло (радиус) и громкой связи (все).
 export function makeBoardMessages(world) {
@@ -90,6 +91,14 @@ export function composerOptions(world) {
 
 // ---- Фейк-ажиотаж: создать lure и навести на него агентов ----
 export function injectFakeHype(world, pt) {
+  // проверяем проходимость точки; если нет — отказываемся без создания lure
+  if (world.fields) {
+    const grid = world.fields.gridFor(world.obstMask ?? 0);
+    if (!isWalkable(grid, pt.x, pt.y)) {
+      world.banner = { text: '🗣 Туда не пройти', t: world.t };
+      return;
+    }
+  }
   world.lures ??= [];
   world.lures.push({ x: pt.x, y: pt.y, until: world.t + T.lureTtl });
   const cands = world.agents.filter(a => a.kind === 'visitor' && a.beliefs);

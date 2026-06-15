@@ -41,6 +41,7 @@ export function openComposer(world, screenX, screenY, onPick, withLocal = null) 
 export function initBoards(canvas, world) {
   const cardsEl = document.getElementById('cards');
   canvas.addEventListener('click', e => {
+    if (world.ui?._suppressClick) { world.ui._suppressClick = false; return; }
     const r = canvas.getBoundingClientRect();
     const mx = (e.clientX - r.left) / T.pxPerMeter, my = (e.clientY - r.top) / T.pxPerMeter;
     const board = world.map.boards.find(b => Math.hypot(b.x - mx, b.y - my) < 2);

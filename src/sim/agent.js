@@ -1,4 +1,4 @@
-import { T, gameClock } from '../data/tuning.js';
+import { T, gameClock, gameOffset } from '../data/tuning.js';
 import { makeBeliefs, probeJamAhead, jamMarkAhead, addJamMark, boardLocalLesson } from './knowledge.js';
 import { randomWalkableNear } from './flowfield.js';
 import { knownEventUrgency } from '../data/events.js';
@@ -59,7 +59,7 @@ export function computeDesires(a, world) {
     for (const ev of (world.events ?? [])) {
       if (ev.poi !== k || !a.beliefs.knownEvents.has(ev.id) || ev.status === 'over' || a.attendedEvents.has(ev.id)) continue;
       const bt = a.beliefs.eventTime[ev.id] ?? ev.time;
-      const left = bt - gameClock(world.t);
+      const left = bt - gameOffset(world.t);  // both bt and gameOffset are offsets from 13:00
       if (left < 1800) s *= 1 + ev.hype * Math.max(0.2, 1 - left / 1800);
     }
     out.push({ key: k, score: s });
@@ -135,7 +135,7 @@ export function think(a, world) {
     if (over) { a.superfan = false; if (a.browseUntil > world.t + 60) a.browseUntil = 0; }
     else {
       const bt = a.beliefs.eventTime?.['concert'] ?? ce.time;
-      const soon = ce.status === 'live' || gameClock(world.t) >= bt - 1800;
+      const soon = ce.status === 'live' || gameOffset(world.t) >= bt - 1800;  // bt is offset from 13:00
       a.beliefs.knownEvents.add('concert');           // суперфан всегда знает про концерт
       if (soon) {
         if (nearPoi(a, world, 'stage')) { a.activity = 'browse'; a.browseUntil = world.t + 9999; a.goalPoi = null; return; }
