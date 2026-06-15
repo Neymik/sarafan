@@ -1,5 +1,6 @@
 import { T, gameClock } from '../data/tuning.js';
 import { randomWalkableNear } from './flowfield.js';
+import { makeBeliefs } from './knowledge.js';
 
 export const PRESETS = [ // веса [goto, wander, phone, rest], доля известной карты
   { name: 'planner',  w: [1.4, 0.6, 0.4, 0.8], mapKnown: 1.0 },
@@ -30,11 +31,11 @@ export function makeAgent(world, id) {
     deceivedUntil: -99, lostSince: 0, phoneDoneAt: 0, blockedTime: 0,
     nextThink: Math.random() * T.utilityTickEvery,
     neighbors: [], density: 0, contact: false,
-    beliefs: {
-      knownPois: new Set(Object.keys(world.map.pois)),
-      jamMarks: [],
-      events: { concert: { time: 14 * 3600, place: 'stage', status: 'on', learnedAt: 0 } },
-    },
+    sociability: Math.random(), stubborn: Math.random(),
+    talkCooldownUntil: 0, talkWith: -1, talkEndAt: 0,
+    jamReactAt: 0, poiCooldown: {}, browseUntil: 0,
+    visitedCount: 0, satThreshold: 3 + (Math.random() * 5 | 0),
+    beliefs: makeBeliefs(world, p.mapKnown),
   };
 }
 

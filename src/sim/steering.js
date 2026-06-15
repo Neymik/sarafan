@@ -1,5 +1,6 @@
 import { T, speedFactor, turnFactor } from '../data/tuning.js';
 import { think } from './agent.js';
+import { eyesUpdate } from './knowledge.js';
 
 export function simTick(world, dt) {
   const { agents, hash } = world;
@@ -9,6 +10,7 @@ export function simTick(world, dt) {
     a.density = a.neighbors.length - 1;
     a.contact = false;
     a.prevX = a.x; a.prevY = a.y; // фактическое смещение за тик измеряется ПОСЛЕ коллизий/стен
+    if (a.beliefs && a.perception > 0) eyesUpdate(a, world);
     a.nextThink -= dt;
     if (a.nextThink <= 0) { a.nextThink = T.utilityTickEvery; if (a.beliefs && world.facts) think(a, world); }
   }
