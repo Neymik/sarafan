@@ -7,15 +7,18 @@ import { h, spawnAt } from '../data/schedule.js';
 // расписание выходов спецперсон
 export const SPAWNS = [
   { at: 0.3,        kind: 'superfan', n: 5 },
+  { at: 0.5,        kind: 'leader',   n: 1 },
   { at: h(13, 5),   kind: 'janitor',  n: 2 },
   { at: h(13, 15),  kind: 'journalist' },
   { at: h(13, 20),  kind: 'streamer' },
+  { at: h(13, 40),  kind: 'leader',   n: 1 },
   { at: h(14, 50),  kind: 'streamer' },
   { at: h(13, 50),  kind: 'cosplayStar' },
   { at: h(15, 10),  kind: 'cosplayStar' },
 ];
 
 export function spawnSpecial(world, kind) {
+  if (kind === 'leader') return spawnLeader(world);
   const a = spawnAt(world, ['exitMain', 'exitW', 'exitE'][(Math.random() * 3) | 0]);
   switch (kind) {
     case 'superfan':
@@ -62,7 +65,8 @@ export function specialTick(world, dt) {
   janitorTick(world, dt);
   litterTick(world, dt);
   rumorTick(world);
-  volunteerTick(world);
+  volunteerNpcTick(world, dt);
+  leaderTick(world);
 }
 
 function pickPoiTarget(world, a) {
@@ -231,20 +235,50 @@ export function injectSpontaneousRumor(world) {
   world.banner = { text: `🔥 Слух пошёл (район: ${nearest})`, t: world.t };
 }
 
-function volunteerTick(world) {
-  for (const v of world.volunteers ?? []) {
-    for (const a of world.hash.queryCircle(v.x, v.y, T.volunteerRadius)) {
-      if (!a.beliefs || a.kind !== 'visitor') continue;
-      if (a.activity === 'lost') {
-        for (const k of Object.keys(world.map.pois)) a.beliefs.knownPois.add(k);
-        a.obstMask = world.obstMask ?? 0;
-        a.activity = 'wander'; a.stress = Math.max(0, a.stress - 15);
-      } else if ((a.volTaughtAt ?? -99) + T.volunteerTeachEvery < world.t) {
-        a.volTaughtAt = world.t;
-        const lesson = boardLocalLesson(world, v);   // v = {x, y} — годится как «табло»
-        for (const k of lesson.pois) a.beliefs.knownPois.add(k);
-        a.obstMask |= lesson.obstBits;
+export function volunteerNpcTick(world, dt) {
+  for (const v of world.agents) {
+    if (v.kind !== 'volunteer') continue;
+    // снять стресс рядом + вылечить lost
+    for (const o of world.hash.queryCircle(v.x, v.y, T.volunteerRadius)) {
+      if (o === v) continue;
+      if (o.stress !== undefined) o.stress = Math.max(0, o.stress - T.volRelief * dt);
+      if (o.activity === 'lost' && o.beliefs) {
+        for (const k of Object.keys(world.map.pois)) o.beliefs.knownPois.add(k);
+        o.obstMask = world.obstMask ?? 0; o.activity = 'wander';
       }
     }
+    // искать самый стрессовый кластер раз в 1.5с
+    if ((v.nextSeek ?? 0) <= world.t) {
+      v.nextSeek = world.t + 1.5;
+      let best = null, bs = 15;
+      for (const o of world.agents) {
+        if (o.kind !== 'visitor' || o.stress < 50) continue;
+        const c = world.hash.queryCircle(o.x, o.y, 2).reduce((s, x) => s + (x.stress ?? 0), 0);
+        if (c > bs) { bs = c; best = o; }
+      }
+      v.target = best ? { x: best.x, y: best.y } : randomWalkableNear(world.fields.gridFor(0), v.x, v.y, 8);
+    }
+  }
+}
+
+export function spawnLeader(world) {
+  const L = spawnAt(world, 'exitMain');
+  L.kind = 'leader';
+  L.beliefs.knownPois = new Set(Object.keys(world.map.pois));
+  pickPoiTarget(world, L);
+  for (let i = 0; i < T.leaderGroupSize; i++) {
+    const f = spawnAt(world, 'exitMain');
+    f.activity = 'follow'; f.followTarget = L.id; f.goalPoi = null;
+  }
+  return L;
+}
+
+function leaderTick(world) {
+  for (const L of world.agents) {
+    if (L.kind !== 'leader') continue;
+    if (!L.goalPoi || (world.map.pois[L.goalPoi] &&
+        (L.x - world.map.pois[L.goalPoi].fx) ** 2 + (L.y - world.map.pois[L.goalPoi].fy) ** 2 < 9)) pickPoiTarget(world, L);
+    for (const f of world.agents)
+      if (f.activity === 'follow' && f.followTarget === L.id) f.target = { x: L.x, y: L.y };
   }
 }

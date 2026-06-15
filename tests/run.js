@@ -103,6 +103,7 @@ test('randomWalkableNear: всегда проходимая клетка', () =>
   }
 });
 
+import { volunteerNpcTick, spawnLeader } from '../src/sim/special.js';
 import { luresTick } from '../src/sim/lures.js';
 import { bystanderChance, pickTopic, applyTopic, finishTalk } from '../src/sim/dialogue.js';
 import { initQueues, queueTick, queueSlotPos } from '../src/sim/queue.js';
@@ -450,6 +451,24 @@ test('lure: истёкший по TTL удаляется', () => {
   const world = { t: 200, agents: [], lures: [{ x: 10, y: 10, until: 100 }] };
   luresTick(world);
   assert.equal(world.lures.length, 0);
+});
+
+test('волонтёр-NPC снижает стресс соседей', () => {
+  const v = { kind: 'volunteer', x: 10, y: 10, target: null, nextSeek: 0 };
+  const n = { x: 11, y: 10, stress: 50 };
+  const world = { t: 0, agents: [v, n], hash: new SpatialHash(1), fields: new Fields(MAP), obstMask: 0 };
+  world.hash.rebuild(world.agents);
+  volunteerNpcTick(world, 1);
+  assert.ok(n.stress < 50, 'стресс снят: ' + n.stress);
+});
+
+test('лидер тащит группу follow', () => {
+  const world = { t: 0, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, events: makeEvents(MAP), flashes: [] };
+  const L = spawnLeader(world);
+  assert.equal(L.kind, 'leader');
+  const followers = world.agents.filter(x => x.activity === 'follow' && x.followTarget === L.id);
+  assert.ok(followers.length >= 3, 'группа набрана: ' + followers.length);
 });
 
 let fail = 0;
