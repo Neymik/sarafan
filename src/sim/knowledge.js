@@ -1,4 +1,4 @@
-import { T, gameClock } from '../data/tuning.js';
+import { T } from '../data/tuning.js';
 
 export function makeWorldFacts() {
   return {
@@ -49,6 +49,7 @@ export function osmosis(a, world) {
     if (Math.random() < T.rumorMutation) { // слух искажается на ступень
       const m = a.beliefs.events.concert;
       if (Math.random() < 0.5) m.time += 600; else m.status = 'cancelled';
+      m.learnedAt -= 1; // слух «чуть старше» правды из той же вспышки — правда побеждает при контакте
     }
   }
 }
