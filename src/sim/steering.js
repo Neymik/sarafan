@@ -62,6 +62,7 @@ function stepAgent(a, world, dt) {
   if (!hasGoal && a.target) {
     const ex = a.target.x - a.x, ey = a.target.y - a.y, d = Math.hypot(ex, ey);
     if (d > 0.3) { sx = ex / d; sy = ey / d; hasGoal = true; }
+    else if (a.activity === 'wander') a.target = null; // дошёл до точки исследования — мозг выберет новую
   }
   if (hasGoal) {
     let mods = 1;
