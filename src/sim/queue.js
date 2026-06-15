@@ -35,6 +35,11 @@ export function queueTick(world, dt) {
       if (a.kind !== 'visitor') continue;
       if (a.goalPoi !== key || a.activity === 'queue' || a.activity === 'mobbing') continue;
       if ((a.x - poi.fx) ** 2 + (a.y - poi.fy) ** 2 < T.queueJoinRadius ** 2) {
+        if (poi.stock === 0 && Math.random() < 0.5) {   // увидел табличку — развернулся
+          a.poiCooldown[key] = world.t + T.poiCooldownTime;
+          a.goalPoi = null; a.activity = 'wander';
+          continue;
+        }
         a.activity = 'queue';
         a.goalPoi = null;
         q.line.push(a);
@@ -55,8 +60,9 @@ export function queueTick(world, dt) {
       return true;
     });
 
-    // обслуживание
-    if (world.t >= q.servingUntil) {
+    // обслуживание (только при наличии товара)
+    const hasStock = poi.stock === undefined || poi.stock > 0;
+    if (hasStock && world.t >= q.servingUntil) {
       const mobDensity = world.hash.queryCircle(poi.fx, poi.fy, 2).length;
       const degraded = mobDensity > T.mobThreshold;
       const rate = poi.service.rate * 10 / T.timeScale / (degraded ? T.mobRateFactor : 1);
@@ -76,7 +82,14 @@ export function queueTick(world, dt) {
         const head = q.line[0];
         if ((head.x - poi.fx) ** 2 + (head.y - poi.fy) ** 2 < 9) served = q.line.shift();
       }
-      if (served) { serveDone(world, served, key); q.servingUntil = world.t + rate; }
+      if (served) {
+        if (poi.stock !== undefined) poi.stock--;
+        serveDone(world, served, key); q.servingUntil = world.t + rate;
+      }
+    }
+    if (!hasStock) {
+      // «НЕТ ТОВАРА»: ожидание злит, новички разворачиваются
+      for (const a of q.line) a.stress = Math.min(100, a.stress + T.starvedStress * dt);
     }
 
     // слоты: каждый агент в очереди получает целевую позицию (после обслуживания — сдвиг)

@@ -165,6 +165,50 @@ test('волна открытия: ~200 за 10 сек, все в проходи
   for (const a of world.agents) assert.ok(isWalkable(g, a.x, a.y), `в стене (${a.x.toFixed(1)},${a.y.toFixed(1)})`);
 });
 
+import { initLogistics, logisticsTick } from '../src/sim/logistics.js';
+
+test('stock: пустой склад у POI останавливает обслуживание', () => {
+  const poi = { x: 9, y: 19, w: 2, h: 2, face: 'E', fx: 10, fy: 20, service: { rate: 0.0001 }, stock: 1 };
+  const world = { t: 100, map: { pois: { q: poi } }, agents: [], hash: { queryCircle: () => [] } };
+  initQueues(world);
+  const mk = id => ({ id, kind: 'visitor', x: 10, y: 20, stress: 50, boredom: 50, visitedCount: 0,
+    activity: 'queue', goalPoi: null, target: null, poiCooldown: {}, beliefs: { knownPois: new Set() } });
+  const a = mk(1), b = mk(2);
+  world.agents.push(a, b);
+  world.queues.q.line.push(a, b);
+  queueTick(world, 1);
+  assert.equal(poi.stock, 0, 'первый купил последнее');
+  assert.equal(world.queues.q.line.length, 1);
+  world.t = 200;
+  queueTick(world, 1);
+  assert.equal(world.queues.q.line.length, 1, 'без товара не обслуживаем');
+  poi.stock = 10;
+  world.t = 300;
+  queueTick(world, 1);
+  assert.equal(world.queues.q.line.length, 0, 'подвезли — очередь пошла');
+});
+
+test('логистика: stock<5 рождает грузчика, прибытие пополняет', () => {
+  const world = {
+    t: 0, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, queues: {},
+  };
+  initQueues(world); initLogistics(world);
+  MAP.pois.merch1.stock = 2; MAP.pois.merch1.soldOut = false; MAP.pois.merch1.weight = 2;
+  logisticsTick(world);
+  const c = world.agents.find(a => a.kind === 'carrier');
+  assert.ok(c, 'грузчик вышел со склада');
+  assert.equal(c.goalPoi, 'merch1');
+  c.x = MAP.pois.merch1.fx; c.y = MAP.pois.merch1.fy;   // телепорт «прибыл»
+  logisticsTick(world);
+  assert.equal(MAP.pois.merch1.stock, 12, '2 + партия 10');
+  assert.equal(c.goalPoi, 'depot', 'возвращается на склад');
+  c.x = MAP.pois.depot.fx; c.y = MAP.pois.depot.fy;
+  logisticsTick(world);
+  assert.ok(c.despawn, 'грузчик ушёл со смены');
+  MAP.pois.merch1.stock = 15; // не загрязнять другие тесты
+});
+
 let fail = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log('ok -', name); }
