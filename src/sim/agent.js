@@ -88,13 +88,16 @@ export function think(a, world) {
       break;
     case 'wander': {
       const keys = Object.keys(world.map.pois);
-      setGoal(a, world, keys[(Math.random() * keys.length) | 0]);
+      if (!setGoal(a, world, keys[(Math.random() * keys.length) | 0])) {
+        a.path = []; // дорог не знает — топчется неподалёку
+        a.target = { x: a.x + (Math.random() - 0.5) * 6, y: a.y + (Math.random() - 0.5) * 6 };
+      }
       break;
     }
     case 'phone':
       a.path = []; a.target = null; break;
     case 'rest': {
-      setGoal(a, world, 'chill');
+      if (!setGoal(a, world, 'chill')) { a.path = []; a.target = null; } // отдыхает где стоит
       break;
     }
   }

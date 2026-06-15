@@ -16,7 +16,14 @@ window.world = world;
 
 window.addEventListener('keydown', e => { if (e.key === 'd') world.debug = !world.debug; });
 
-for (let i = 0; i < T.agentCount; i++) world.agents.push(makeAgent(world, i));
+for (let i = 0; i < T.agentCount; i++) {
+  const a = makeAgent(world, i);
+  // в 13:00 толпа уже рассеяна по конвенту; у входа спавнятся только прибывающие (поезд)
+  const z = world.map.zones[(Math.random() * world.map.zones.length) | 0].rect;
+  a.x = z[0] + 0.5 + Math.random() * (z[2] - 1);
+  a.y = z[1] + 0.5 + Math.random() * (z[3] - 1);
+  world.agents.push(a);
+}
 
 let acc = 0, last = performance.now();
 function frame(now) {
