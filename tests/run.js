@@ -504,6 +504,24 @@ test('мета HL3: роняет радость слышащим', () => {
   assert.ok(world.agents.some(a => a.joy < 60));
 });
 
+test('fields: dir вычисляет поле только для запрошенного POI (lazy per-poi)', () => {
+  const fl = new Fields(MAP);
+  fl.dir('clear', 0, 'food', MAP.pois.food.fx, MAP.pois.food.fy);
+  assert.ok(fl.fcache.has('0|food'), 'food посчитан');
+  assert.ok(!fl.fcache.has('0|stage'), 'stage НЕ посчитан');
+});
+
+test('fields: смена слота инвалидирует только маски с этим битом', () => {
+  const fl = new Fields(MAP);
+  fl.setSlot(0, { x: 12, y: 21, w: 3, h: 3 });          // bit 1 active
+  fl.dir('clear', 1, 'food', MAP.pois.food.fx, MAP.pois.food.fy);
+  fl.dir('clear', 0, 'food', MAP.pois.food.fx, MAP.pois.food.fy);
+  assert.ok(fl.fcache.has('1|food') && fl.fcache.has('0|food'));
+  fl.clearSlot(0);
+  assert.ok(!fl.fcache.has('1|food'), 'маска с битом 0 сброшена');
+  assert.ok(fl.fcache.has('0|food'), 'маска без бита 0 уцелела');
+});
+
 let fail = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log('ok -', name); }

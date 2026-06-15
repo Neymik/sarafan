@@ -46,7 +46,7 @@ export function simTick(world, dt) {
 
   if (world.fields) {
     world.smartTimer = (world.smartTimer ?? 0) - dt;
-    if (world.smartTimer <= 0) { world.smartTimer = T.smartRecomputeEvery; world.fields.recomputeSmart(agents, world.obstMask ?? 0); }
+    if (world.smartTimer <= 0) { world.smartTimer = T.smartRecomputeEvery; world.fields.recomputeSmart(agents, world.obstMask ?? 0, world.t); }
   }
 
   if (world.agents.some(a => a.despawn)) {

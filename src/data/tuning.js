@@ -20,7 +20,8 @@ export const T = {
   smartFieldK: 0.35, smartRecomputeEvery: 2, smartDuration: 20,
   jamThreshold: 7, jamMarkTtl: 30, jamMarksMax: 4,
   boardLocalRadius: 15,
-  fieldCacheMax: 12,      // максимум кэшированных масок Fields
+  gridCacheMax: 64,       // максимум кэшированных сеток (Uint8Array + clearance)
+  fieldCacheMax: 1024,    // максимум кэшированных полей per-(mask,poi); 32 масок × 28 POI = 896
   // мозг v2
   browseMin: 4, browseMax: 10, poiCooldownTime: 60,
   panicForgetChance: 0.05, jamReactCooldown: 10, leaveWeight: 0.9,

@@ -115,34 +115,67 @@ export function fieldDir(grid, field, x, y) {
   return { x: bx / l, y: by / l };
 }
 
-// Менеджер полей: clear по маскам активных слотов-препятствий (лениво) + smart на правде.
+// Менеджер полей: lazy per-(mask,POI) кэш + smart только для текущих целей.
 // Слоты 0–2 — барьеры игрока, 3–4 — инциденты.
 export class Fields {
   constructor(map) {
     this.map = map;
     this.slots = [null, null, null, null, null];
-    this.grids = new Map(); this.clear = new Map();
+    this.grids = new Map();
+    // fcache: Map keyed by `mask|poiKey` → Float32Array field (lazy per-(mask,poi))
+    this.fcache = new Map();
     this.smart = {}; this.smartMask = 0;
     this.gridFor(0);
   }
+
   activeMask() { let m = 0; this.slots.forEach((s, i) => { if (s) m |= 1 << i; }); return m; }
-  setSlot(i, rect) { this.slots[i] = rect; this.invalidate(); }
-  clearSlot(i) { this.slots[i] = null; this.invalidate(); }
-  invalidate() { this.grids.clear(); this.clear.clear(); this.smart = {}; this.gridFor(0); }
-  _cap(map) { if (map.size > T.fieldCacheMax) map.delete(map.keys().next().value); }
+
+  setSlot(i, rect) { this.slots[i] = rect; this._dropBit(i); }
+  clearSlot(i) { this.slots[i] = null; this._dropBit(i); }
+
+  // Partial invalidation: only evict grids/fields whose mask includes bit i.
+  _dropBit(i) {
+    const bit = 1 << i;
+    for (const m of [...this.grids.keys()]) {
+      if (m & bit) this.grids.delete(m);
+    }
+    for (const k of [...this.fcache.keys()]) {
+      const m = +k.split('|')[0];
+      if (m & bit) this.fcache.delete(k);
+    }
+    this.smart = {};
+    this.gridFor(0); // keep base grid warm
+  }
+
+  _capGrids() {
+    while (this.grids.size > T.gridCacheMax) this.grids.delete(this.grids.keys().next().value);
+  }
+  _capFields() {
+    while (this.fcache.size > T.fieldCacheMax) this.fcache.delete(this.fcache.keys().next().value);
+  }
+
   gridFor(mask) {
-    if (!this.grids.has(mask)) { this.grids.set(mask, buildGrid(this.map, this.slots, mask)); this._cap(this.grids); }
+    if (!this.grids.has(mask)) {
+      this.grids.set(mask, buildGrid(this.map, this.slots, mask));
+      this._capGrids();
+    }
     return this.grids.get(mask);
   }
-  clearFor(mask) {
-    if (!this.clear.has(mask)) {
-      const g = this.gridFor(mask), set = {};
-      for (const [k, p] of Object.entries(this.map.pois)) set[k] = computeField(g, p.fx, p.fy, null);
-      this.clear.set(mask, set); this._cap(this.clear);
+
+  // Compute & cache a single field for one (mask, poi) pair on demand.
+  fieldFor(mask, poi) {
+    const key = mask + '|' + poi;
+    if (!this.fcache.has(key)) {
+      const p = this.map.pois[poi];
+      if (!p) return null;
+      const g = this.gridFor(mask);
+      this.fcache.set(key, computeField(g, p.fx, p.fy, null));
+      this._capFields();
     }
-    return this.clear.get(mask);
+    return this.fcache.get(key);
   }
-  recomputeSmart(agents, actualMask) {
+
+  recomputeSmart(agents, actualMask, t) {
     const g = this.gridFor(actualMask);
     this.smartMask = actualMask;
     const d = this.density = new Float32Array(g.W * g.H);
@@ -151,11 +184,32 @@ export class Fields {
       if (i >= 0 && i < d.length) d[i]++;
     }
     const cost = i => 1 + T.smartFieldK * d[i];
-    for (const [k, p] of Object.entries(this.map.pois)) this.smart[k] = computeField(g, p.fx, p.fy, cost);
+
+    // Only compute smart fields for POIs that are CURRENT detour goals.
+    const tNow = t ?? 0;
+    const goals = new Set();
+    for (const a of agents) {
+      if (a.smartUntil > tNow && a.goalPoi) goals.add(a.goalPoi);
+    }
+
+    if (goals.size === 0) {
+      this.smart = {};
+      return;
+    }
+
+    const newSmart = {};
+    for (const poi of goals) {
+      const p = this.map.pois[poi];
+      if (p) newSmart[poi] = computeField(g, p.fx, p.fy, cost);
+    }
+    this.smart = newSmart;
   }
+
   dir(mode, mask, poi, x, y) {
-    if (mode === 'smart' && this.smart[poi]) return fieldDir(this.gridFor(this.smartMask ?? 0), this.smart[poi], x, y);
-    const set = this.clearFor(mask);
-    return set[poi] ? fieldDir(this.gridFor(mask), set[poi], x, y) : null;
+    if (mode === 'smart' && this.smart[poi]) {
+      return fieldDir(this.gridFor(this.smartMask ?? 0), this.smart[poi], x, y);
+    }
+    const field = this.fieldFor(mask, poi);
+    return field ? fieldDir(this.gridFor(mask), field, x, y) : null;
   }
 }
