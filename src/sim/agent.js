@@ -103,16 +103,20 @@ export function think(a, world) {
 
   if (a.superfan) {
     const bel = a.beliefs.events.concert;
-    const soon = bel.status === 'started' || (bel.status === 'on' && gameClock(world.t) >= bel.time - 1800);
-    if (soon) {
-      if (nearPoi(a, world, 'stage')) {
-        a.activity = 'browse'; a.browseUntil = world.t + 9999; a.goalPoi = null;
-        if (bel.status === 'over' || world.facts.concert.status === 'over') { a.superfan = false; a.browseUntil = 0; }
-        return;
+    if (bel.status === 'over' || bel.status === 'cancelled' || world.facts.concert.status === 'over') {
+      a.superfan = false;                                  // шоу кончилось — снова обычный гость
+      if (a.browseUntil > world.t + 60) a.browseUntil = 0;
+    } else {
+      const soon = bel.status === 'started' || (bel.status === 'on' && gameClock(world.t) >= bel.time - 1800);
+      if (soon) {
+        if (nearPoi(a, world, 'stage')) {
+          a.activity = 'browse'; a.browseUntil = world.t + 9999; a.goalPoi = null;
+          return;
+        }
+        if (a.activity !== 'queue' && a.activity !== 'mobbing') { a.activity = 'goto'; a.goalPoi = 'stage'; a.target = null; return; }
+      } else if (!a.visitedPois?.has('autograph') && a.activity !== 'queue' && a.activity !== 'mobbing' && a.goalPoi !== 'autograph') {
+        a.activity = 'goto'; a.goalPoi = 'autograph'; a.target = null; return;
       }
-      if (a.activity !== 'queue' && a.activity !== 'mobbing') { a.activity = 'goto'; a.goalPoi = 'stage'; a.target = null; return; }
-    } else if (!a.visitedPois?.has('autograph') && a.activity !== 'queue' && a.activity !== 'mobbing' && a.goalPoi !== 'autograph') {
-      a.activity = 'goto'; a.goalPoi = 'autograph'; a.target = null; return;
     }
   }
 
