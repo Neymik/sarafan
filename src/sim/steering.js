@@ -79,10 +79,12 @@ function stepAgent(a, world, dt) {
       const closing = -(rx * rvx + ry * rvy);
       if (closing <= 0) continue;
       const d = Math.hypot(rx, ry);
+      if (d < 1e-4) continue;
       const ttc = d / (closing / d);
       if (ttc < 1) {
-        const myP = a.mass * Math.hypot(a.vx, a.vy) * (a.activity === 'goto' ? 1.5 : 1);
-        const theirP = b.mass * Math.hypot(b.vx, b.vy) * (b.activity === 'goto' ? 1.5 : 1);
+        // floor скорости в приоритете: покоящийся тяжёлый всё равно «главнее» лёгкого
+        const myP = a.mass * Math.max(Math.hypot(a.vx, a.vy), 0.5) * (a.activity === 'goto' ? 1.5 : 1);
+        const theirP = b.mass * Math.max(Math.hypot(b.vx, b.vy), 0.5) * (b.activity === 'goto' ? 1.5 : 1);
         if (theirP > myP * (2 - a.politeness)) {
           dx += -ry / d * 1.5;  // перпендикуляр от его курса
           dy +=  rx / d * 1.5;
