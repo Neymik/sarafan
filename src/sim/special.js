@@ -46,9 +46,11 @@ export function spawnSpecial(world, kind) {
 }
 
 export function specialTick(world, dt) {
-  for (const ev of SPAWNS) {
-    if (!ev.done && world.t >= ev.at) {
-      ev.done = true;
+  world.spawnsDone ??= new Set();
+  for (let idx = 0; idx < SPAWNS.length; idx++) {
+    const ev = SPAWNS[idx];
+    if (!world.spawnsDone.has(idx) && world.t >= ev.at) {
+      world.spawnsDone.add(idx);
       for (let i = 0; i < (ev.n ?? 1); i++) spawnSpecial(world, ev.kind);
     }
   }

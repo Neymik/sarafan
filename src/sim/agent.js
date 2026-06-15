@@ -106,6 +106,7 @@ export function think(a, world) {
     if (bel.status === 'over' || bel.status === 'cancelled' || world.facts.concert.status === 'over') {
       a.superfan = false;                                  // шоу кончилось — снова обычный гость
       if (a.browseUntil > world.t + 60) a.browseUntil = 0;
+      a.satThreshold = 3 + (Math.random() * 5 | 0);
     } else {
       const soon = bel.status === 'started' || (bel.status === 'on' && gameClock(world.t) >= bel.time - 1800);
       if (soon) {
