@@ -221,6 +221,32 @@ export function injectSpontaneousRumor(world) {
   const cands = world.agents.filter(a => a.kind === 'visitor' && a.sociability > 0.7 && a.perception > 0);
   if (!cands.length) return;
   const a = cands[(Math.random() * cands.length) | 0];
+
+  // 50/50: booth-сарафан или эвент-мутация
+  const boothKeys = Object.keys(world.map.pois).filter(k => world.map.pois[k].booth);
+  if (Math.random() < 0.5 && boothKeys.length) {
+    // booth-сарафан: пометить случайного visitor евангелистом или нытиком на 30 с
+    const key = boothKeys[(Math.random() * boothKeys.length) | 0];
+    const visitor = cands[(Math.random() * cands.length) | 0];
+    if (Math.random() < 0.5) {
+      visitor.evangelBooth = key;
+      visitor.evangelistUntil = world.t + 30;
+    } else {
+      visitor.complainBooth = key;
+      visitor.complainUntil = world.t + 30;
+    }
+    const p = world.map.pois[key];
+    world.banner = { text: `🔥 Сарафан о бутике: ${p.label ?? key}`, t: world.t };
+    // также мутируем эвент-слух (чтобы всегда гарантировать зачинщика)
+    const ce = (world.events ?? []).find(e => e.id === 'concert');
+    if (ce && ce.status !== 'over') {
+      a.beliefs.knownEvents.add('concert');
+      a.beliefs.eventTime['concert'] = ce.time + 1800;
+    }
+    return;
+  }
+
+  // эвент-мутация: сдвинуть время концерта
   const ce = (world.events ?? []).find(e => e.id === 'concert');
   if (ce && ce.status !== 'over') {
     // слух: сдвинуть время концерта на +30 мин у этого агента

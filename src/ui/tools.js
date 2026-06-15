@@ -2,6 +2,7 @@ import { T } from '../data/tuning.js';
 import { randomWalkableNear, isWalkable } from '../sim/flowfield.js';
 import { enterLost, makeAgent } from '../sim/agent.js';
 import { openComposer } from './boards.js';
+import { injectFakeHype, injectMeta, composerOptions, makeBoardMessages } from '../data/messages.js';
 
 const px2m = (canvas, e) => {
   const r = canvas.getBoundingClientRect();
@@ -10,7 +11,8 @@ const px2m = (canvas, e) => {
 
 export function initTools(canvas, world) {
   world.ui = { mode: 'cursor', dragging: null, holdTimer: null, holdAgent: null,
-    paUntil: 0, rumorUntil: 0, shiftUsed: false, dragFrom: null, dragCooldownUntil: 0 };
+    paUntil: 0, rumorUntil: 0, shiftUsed: false, dragFrom: null, dragCooldownUntil: 0,
+    armFakeHype: false };
 
   const bar = document.getElementById('toolbar');
   bar.innerHTML = `
@@ -69,29 +71,18 @@ export function initTools(canvas, world) {
   };
   document.getElementById('rumorBtn').onclick = e => {
     if (world.t < world.ui.rumorUntil) return;
-    const el = document.getElementById('cards');
-    el.innerHTML = ''; el.style.left = e.clientX + 'px'; el.style.top = e.clientY + 'px'; el.style.display = 'flex';
-    for (const [k, p] of Object.entries(world.map.pois)) {
-      if (p.exit || p.staff || p.soldOut || p.weight <= 0) continue;
-      const btn = document.createElement('button');
-      btn.textContent = `«У "${p.label}" что-то раздают!»`;
-      btn.onclick = () => {
-        el.style.display = 'none';
-        world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
-        const cands = world.agents.filter(a => a.kind === 'visitor' && a.beliefs);
-        for (let i = 0; i < T.rumorInjectCount && cands.length; i++) {
-          const a = cands.splice((Math.random() * cands.length) | 0, 1)[0];
-          a.beliefs.knownPois.add(k);
-          a.poiPromo[k] = world.t + T.promoTime;
-        }
-        world.banner = { text: `🗣 Слух запущен: ${p.label}`, t: world.t };
-      };
-      el.appendChild(btn);
-    }
+    openRumorMenu(world, e.clientX, e.clientY);
   };
 
   canvas.addEventListener('mousedown', e => {
     const m = px2m(canvas, e);
+    // fake-hype armed: intercept next canvas click before other branches
+    if (world.ui.armFakeHype) {
+      world.ui.armFakeHype = false;
+      world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+      injectFakeHype(world, { x: m.x, y: m.y });
+      return;
+    }
     if (world.map.boards.some(b => Math.hypot(b.x - m.x, b.y - m.y) < 2)) return;
     if (world.ui.mode === 'barrier') return placeBarrier(world, m);
     if (world.ui.mode === 'volunteer') return placeVolunteer(world, m);
@@ -163,4 +154,100 @@ function placeVolunteer(world, m) {
   v.kind = 'volunteer'; v.x = m.x; v.y = m.y; v.maxSpeed = 2.2; v.sociability = 0;
   v.beliefs.knownPois = new Set(Object.keys(world.map.pois));
   world.agents.push(v);
+}
+
+// ---- Меню вброса слухов/приколов ----
+function openRumorMenu(world, cx, cy) {
+  const el = document.getElementById('cards');
+  el.innerHTML = '';
+  el.style.left = cx + 'px';
+  el.style.top = cy + 'px';
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+
+  const close = () => { el.style.display = 'none'; };
+  const addBtn = (label, fn) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.onclick = () => { close(); fn(); };
+    el.appendChild(btn);
+  };
+
+  const opts = composerOptions(world);
+  const msgs = makeBoardMessages(world);
+
+  // Эвент-слухи: по каждому эвенту + варианту
+  for (const ev of (opts.events ?? [])) {
+    if (ev.status === 'over') continue;
+    for (const v of ev.variants) {
+      addBtn(`📅 ${v.label}`, () => {
+        world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+        const applyFn = msgs.event(ev.id, v.kind);
+        const cands = world.agents.filter(a => a.kind === 'visitor' && a.beliefs);
+        for (let i = 0; i < T.rumorInjectCount && cands.length; i++) {
+          const a = cands.splice((Math.random() * cands.length) | 0, 1)[0];
+          applyFn(a, world);
+        }
+        world.banner = { text: `🗣 Слух об эвенте: ${v.label}`, t: world.t };
+      });
+    }
+  }
+
+  // Бутик 🔥 (boothGood): выбор бутика
+  for (const b of (opts.booths ?? [])) {
+    addBtn(`🔥 «${b.label} — топ!»`, () => {
+      world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+      const applyFn = msgs.boothGood(b.key);
+      const cands = world.agents.filter(a => a.kind === 'visitor' && a.beliefs);
+      for (let i = 0; i < T.rumorInjectCount && cands.length; i++) {
+        const a = cands.splice((Math.random() * cands.length) | 0, 1)[0];
+        applyFn(a, world);
+      }
+      world.banner = { text: `🔥 Сарафан: ${b.label} — крутой!`, t: world.t };
+    });
+  }
+
+  // Бутик 🗑 (boothBad): выбор бутика
+  for (const b of (opts.booths ?? [])) {
+    addBtn(`🗑 «${b.label} — отстой»`, () => {
+      world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+      const applyFn = msgs.boothBad(b.key);
+      const cands = world.agents.filter(a => a.kind === 'visitor' && a.beliefs);
+      for (let i = 0; i < T.rumorInjectCount && cands.length; i++) {
+        const a = cands.splice((Math.random() * cands.length) | 0, 1)[0];
+        applyFn(a, world);
+      }
+      world.banner = { text: `🗑 Антисарафан: ${b.label}`, t: world.t };
+    });
+  }
+
+  // Фейк-ажиотаж: вооружить следующий клик по карте
+  addBtn('🎯 Фейк-ажиотаж (клик по карте)', () => {
+    world.ui.armFakeHype = true;
+    world.banner = { text: '🎯 Кликни по карте — туда ломанутся', t: world.t };
+  });
+
+  // Мета-приколы
+  addBtn('😭 Мета: HL3 отменили', () => {
+    world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+    injectMeta(world, 'hl3');
+  });
+  addBtn('📶 Мета: Вайфай у входа', () => {
+    world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+    injectMeta(world, 'wifi');
+  });
+  addBtn('⭐ Мета: Звезда у еды', () => {
+    world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+    injectMeta(world, 'starfood');
+  });
+  addBtn('👶 Мета: Потерялся ребёнок', () => {
+    world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
+    injectMeta(world, 'lostkid');
+  });
+
+  // Закрыть
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✖ Закрыть';
+  closeBtn.onclick = close;
+  el.appendChild(closeBtn);
 }

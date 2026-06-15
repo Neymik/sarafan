@@ -261,6 +261,7 @@ import { makeEvents, eventStatusTick, eventRescheduleTick, knownEventUrgency } f
 import { T } from '../src/data/tuning.js';
 import { incidentsTick } from '../src/sim/incidents.js';
 import { computeDesires, arrive } from '../src/sim/agent.js';
+import { injectMeta, injectFakeHype } from '../src/data/messages.js';
 
 test('joy: дрейф к базису сверху, снизу не падает сам', () => {
   const world = { t: 0, map: MAP, agents: [], hash: new SpatialHash(1),
@@ -484,6 +485,22 @@ test('память→барьер: visitor утыкается в неизвес�
   applyBarrierLost(a, world);
   assert.ok(a.obstMask & 1, 'узнал бит');
   assert.equal(a.activity, 'lost');
+});
+
+test('фейк-ажиотаж: создаёт lure и наводит на него агентов', () => {
+  const world = { t: 0, map: MAP, agents: [], lures: [] };
+  for (let i = 0; i < 30; i++) { const a = makeAgent(world, i); a.kind = 'visitor'; world.agents.push(a); }
+  injectFakeHype(world, { x: 30, y: 20 });
+  assert.equal(world.lures.length, 1);
+  assert.ok(world.agents.filter(a => a.lureTarget).length >= 10);
+});
+
+test('мета HL3: роняет радость слышащим', () => {
+  const world = { t: 0, map: MAP, agents: [], lures: [], banner: null };
+  for (let i = 0; i < 10; i++) { const a = makeAgent(world, i); a.kind = 'visitor'; a.joy = 60; world.agents.push(a); }
+  injectMeta(world, 'hl3');
+  assert.ok(world.agents.every(a => a.joy <= 60));
+  assert.ok(world.agents.some(a => a.joy < 60));
 });
 
 let fail = 0;
