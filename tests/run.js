@@ -252,6 +252,30 @@ test('слух: заражает одного с пометкой свежест
   assert.equal(infected[0].beliefs.events.concert.learnedAt, world.t, 'слух свежее правды');
 });
 
+import { incidentsTick } from '../src/sim/incidents.js';
+
+test('инцидент: горячая клетка 10с → слот занят, через 20с свободен', () => {
+  const fl = new Fields(MAP);
+  const g = fl.gridFor(0);
+  fl.density = new Float32Array(g.W * g.H);
+  const cell = 22 * g.W + 30;                       // проход
+  fl.density[cell] = 7;
+  const crowd = Array.from({ length: 13 }, () => ({ stress: 0 }));
+  const world = {
+    t: 0, map: MAP, agents: [], fields: fl, obstMask: 0,
+    hash: { queryCircle: () => crowd },
+    score: { incidents: 0 },
+    syncObstacles() { this.obstMask = this.fields.activeMask(); },
+  };
+  for (let i = 0; i < 13; i++) { incidentsTick(world, 1); world.t += 1; }
+  assert.equal(world.score.incidents, 1, 'инцидент засчитан');
+  assert.ok(world.fields.slots[3], 'слот 3 занят оцеплением');
+  assert.ok(crowd[0].stress > 0, 'волна стресса прошла');
+  fl.density[cell] = 0;
+  for (let i = 0; i < 25; i++) { incidentsTick(world, 1); world.t += 1; }
+  assert.equal(world.fields.slots[3], null, 'оцепление снято');
+});
+
 let fail = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log('ok -', name); }
