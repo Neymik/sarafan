@@ -8,8 +8,8 @@ export const T = {
   personalSpaceForce: 2.0, alignmentThreshold: 4, wallRepel: 3.0,
   // нужды/стресс (в единицах за реальную секунду)
   fatigueRate: 0.6, boredomRate: 1.2, phoneItchRate: 1.0,
-  stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 3.5,
-  blockedStressAfter: 3, blockedStressRate: 2.0,
+  stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 4.0,
+  blockedStressAfter: 4, blockedStressRate: 2.0,
   // знание
   sightRadius: 8, rumorMutation: 0.1, boardRadius: 6, lagRed: 20,
   // мозг
