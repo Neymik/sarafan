@@ -181,23 +181,24 @@ export function resolveCollisions(world) {
 }
 
 export function segmentHitsRect(x, y, dx, dy, len, r, pad) {
-  const ex = r.x - pad, ey = r.y - pad, ew = r.w + 2 * pad, eh = r.h + 2 * pad; // расширенный rect
-  // параметрический отрезок (x,y)+(dx,dy)*t, t∈[0,len]; slab-тест
+  const ex = r.x - pad, ey = r.y - pad, ew = r.w + 2 * pad, eh = r.h + 2 * pad;
   let t0 = 0, t1 = len;
-  for (const [p, q, lo, hi] of [[dx, x, ex, ex + ew], [dy, y, ey, ey + eh]]) {
-    if (Math.abs(p) < 1e-9) { if (q < lo || q > hi) return false; continue; }
-    let a = (lo - q) / p, b = (hi - q) / p; if (a > b) [a, b] = [b, a];
-    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
-    if (t0 > t1) return false;
-  }
-  return t1 >= 0 && t0 <= len;
+  // X slab
+  if (Math.abs(dx) < 1e-9) { if (x < ex || x > ex + ew) return false; }
+  else { let a = (ex - x) / dx, b = (ex + ew - x) / dx; if (a > b) { const t = a; a = b; b = t; }
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) return false; }
+  // Y slab
+  if (Math.abs(dy) < 1e-9) { if (y < ey || y > ey + eh) return false; }
+  else { let a = (ey - y) / dy, b = (ey + eh - y) / dy; if (a > b) { const t = a; a = b; b = t; }
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) return false; }
+  return true;
 }
 
 export function steerAround(a, dx, dy, world) {
   const len = Math.hypot(dx, dy);
   if (len < 1e-6) return { x: dx, y: dy };
   let ux = dx / len, uy = dy / len;
-  const obs = world.obstacles ?? world.map?.blocks ?? [];
+  const obs = world.obstacles ?? (world.map ? solidRects(world.map) : []);
   const blocked = dir => obs.some(r => segmentHitsRect(a.x, a.y, dir.x, dir.y, T.whiskerLen, r, a.radius));
   if (!blocked({ x: ux, y: uy })) return { x: dx, y: dy };
   for (const deg of [30, -30, 60, -60, 90, -90]) {     // ищем ближайший свободный угол
