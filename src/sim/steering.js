@@ -108,7 +108,7 @@ function stepAgent(a, world, dt) {
     }
   }
   // отталкивание от стен: мягкая сила до контакта
-  for (const r of (world.obstacles ?? world.map.blocks)) {
+  for (const r of (world.obstacles ?? solidRects(world.map))) {
     const px = Math.max(r.x, Math.min(r.x + r.w, a.x));
     const py = Math.max(r.y, Math.min(r.y + r.h, a.y));
     const ox = a.x - px, oy = a.y - py, d = Math.hypot(ox, oy);
