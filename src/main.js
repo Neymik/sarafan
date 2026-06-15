@@ -4,7 +4,6 @@ import { draw } from './render/draw.js';
 import { makeAgent } from './sim/agent.js';
 import { SpatialHash } from './sim/spatialHash.js';
 import { simTick } from './sim/steering.js';
-import { findPath, nearestWaypoint } from './sim/pathfinding.js';
 import { makeWorldFacts } from './sim/knowledge.js';
 
 const canvas = document.getElementById('c');
@@ -17,20 +16,7 @@ window.world = world;
 
 window.addEventListener('keydown', e => { if (e.key === 'd') world.debug = !world.debug; });
 
-for (let i = 0; i < T.agentCount; i++) {
-  const a = makeAgent(world, i);
-  const poiKeys = Object.keys(world.map.pois);
-  const poi = world.map.pois[poiKeys[(Math.random() * poiKeys.length) | 0]];
-  a.path = findPath(world.map, a.beliefs, nearestWaypoint(world.map, a.x, a.y), poi.wp) || [];
-  a.pathI = 0;
-  if (a.path.length > 1) { // не идти назад к стартовому вейпоинту, если следующий уже ближе
-    const w0 = world.map.waypoints[a.path[0]], w1 = world.map.waypoints[a.path[1]];
-    if (Math.hypot(w1.x - a.x, w1.y - a.y) < Math.hypot(w0.x - a.x, w0.y - a.y)) a.pathI = 1;
-  }
-  const wpt = world.map.waypoints[poi.wp];
-  a.target = { x: wpt.x + (Math.random() - 0.5) * 3, y: wpt.y + (Math.random() - 0.5) * 3 };
-  world.agents.push(a);
-}
+for (let i = 0; i < T.agentCount; i++) world.agents.push(makeAgent(world, i));
 
 let acc = 0, last = performance.now();
 function frame(now) {

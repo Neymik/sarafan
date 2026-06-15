@@ -1,5 +1,6 @@
 import { T, speedFactor, turnFactor } from '../data/tuning.js';
 import { updateEdgeCongestion, eyesUpdate, osmosis } from './knowledge.js';
+import { think } from './agent.js';
 
 export function simTick(world, dt) {
   const { agents, hash } = world;
@@ -15,6 +16,8 @@ export function simTick(world, dt) {
       if (a.perception > 0) eyesUpdate(a, world);
       osmosis(a, world);
     }
+    a.nextThink -= dt;
+    if (a.nextThink <= 0) { a.nextThink = T.utilityTickEvery; if (a.beliefs && world.facts) think(a, world); }
   }
   for (const a of agents) stepAgent(a, world, dt);
   resolveCollisions(world);
@@ -55,7 +58,10 @@ function stepAgent(a, world, dt) {
   const wp = currentTarget(a, world);
   if (wp) {
     const ex = wp.x - a.x, ey = wp.y - a.y, d = Math.hypot(ex, ey) || 1;
-    const speed = a.maxSpeed * speedFactor(a.density) * (a.activity === 'wander' ? 0.6 : 1);
+    let mods = 1;
+    if (a.activity === 'wander') mods = 0.6;
+    if (a.activity === 'phone') mods = 0.15;
+    const speed = a.maxSpeed * speedFactor(a.density) * mods;
     dx = ex / d * speed; dy = ey / d * speed;
   }
   // течение с толпой
@@ -63,7 +69,8 @@ function stepAgent(a, world, dt) {
     let avx = 0, avy = 0, n = 0;
     for (const b of a.neighbors) if (b !== a) { avx += b.vx; avy += b.vy; n++; }
     if (n) {
-      const w = Math.min(0.8, a.conformity * a.density / T.jamN);
+      const conf = a.activity === 'phone' ? a.conformity * 2 : a.conformity;
+      const w = Math.min(0.8, conf * a.density / T.jamN);
       dx = dx * (1 - w) + (avx / n) * w;
       dy = dy * (1 - w) + (avy / n) * w;
     }
