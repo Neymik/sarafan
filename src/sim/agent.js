@@ -49,21 +49,33 @@ function nearPoi(a, world, key) {
   return p ? (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2 < 16 : false;
 }
 
-function weightedPickPoi(a, world) {
-  const entries = [];
+export function computeDesires(a, world) {
+  const out = [];
   for (const k of a.beliefs.knownPois) {
     const p = world.map.pois[k];
-    if (!p || p.exit || p.weight <= 0) continue;
-    if (p.staff) continue;
+    if (!p || p.exit || p.staff || p.weight <= 0) continue;
     if ((a.poiCooldown[k] ?? 0) > world.t) continue;
-    const promo = (a.poiPromo[k] ?? 0) > world.t ? T.promoFactor : 1;
-    entries.push([k, p.weight * promo * (a.visitedPois?.has(k) ? 0.3 : 1)]);
+    let s = p.weight * ((a.poiPromo[k] ?? 0) > world.t ? T.promoFactor : 1) * (a.visitedPois?.has(k) ? 0.3 : 1);
+    for (const ev of (world.events ?? [])) {
+      if (ev.poi !== k || !a.beliefs.knownEvents.has(ev.id) || ev.status === 'over' || a.attendedEvents.has(ev.id)) continue;
+      const bt = a.beliefs.eventTime[ev.id] ?? ev.time;
+      const left = bt - gameClock(world.t);
+      if (left < 1800) s *= 1 + ev.hype * Math.max(0.2, 1 - left / 1800);
+    }
+    out.push({ key: k, score: s });
   }
-  if (!entries.length) return null;
-  let sum = 0; for (const [, w] of entries) sum += w;
+  out.sort((x, y) => y.score - x.score);
+  return out;
+}
+
+function weightedPickPoi(a, world) {
+  const d = computeDesires(a, world);
+  if (!d.length) return null;
+  let sum = 0; for (const e of d) sum += e.score;
+  if (sum <= 0) return d[0].key;
   let r = Math.random() * sum;
-  for (const [k, w] of entries) { r -= w; if (r <= 0) return k; }
-  return entries[entries.length - 1][0];
+  for (const e of d) { r -= e.score; if (r <= 0) return e.key; }
+  return d[d.length - 1].key;
 }
 
 function nearestExit(a, world) {
@@ -81,7 +93,22 @@ function startExplore(a, world) {
   a.target = randomWalkableNear(world.fields.gridFor(0), a.x, a.y, 8);
 }
 
-function arrive(a, world) { // дошёл до goalPoi (несервисного)
+export function arrive(a, world) { // дошёл до goalPoi (несервисного)
+  const p = world.map.pois[a.goalPoi];
+  // эвент на этом POI, который агент знал и ещё не посещал
+  for (const ev of (world.events ?? [])) {
+    if (ev.poi !== a.goalPoi || ev.status !== 'live') continue;
+    if (!a.beliefs.knownEvents.has(ev.id) || a.attendedEvents.has(ev.id)) continue;
+    a.attendedEvents.add(ev.id);
+    a.joy = Math.min(100, a.joy + ev.quality * 25 + T.eventBonus);
+  }
+  // качество бутика
+  if (p && p.booth) {
+    const dJoy = p.quality * 25;
+    a.joy = Math.max(0, Math.min(100, a.joy + dJoy));
+    if (dJoy > 15) { a.evangelBooth = a.goalPoi; a.evangelistUntil = world.t + T.evangelistTime; }
+    else if (dJoy < -15) { a.stress = Math.min(100, a.stress + 8); a.complainBooth = a.goalPoi; a.complainUntil = world.t + T.evangelistTime; }
+  }
   (a.visitedPois ??= new Set()).add(a.goalPoi);
   a.visitedCount++;
   a.poiCooldown[a.goalPoi] = world.t + T.poiCooldownTime;

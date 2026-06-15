@@ -257,6 +257,7 @@ test('слух: заражает одного с новым временем э�
 import { makeEvents, eventStatusTick, eventRescheduleTick, knownEventUrgency } from '../src/data/events.js';
 import { T } from '../src/data/tuning.js';
 import { incidentsTick } from '../src/sim/incidents.js';
+import { computeDesires, arrive } from '../src/sim/agent.js';
 
 test('joy: дрейф к базису сверху, снизу не падает сам', () => {
   const world = { t: 0, map: MAP, agents: [], hash: new SpatialHash(1),
@@ -361,6 +362,48 @@ test('миграция: агент без знания эвентов не им�
   const a = makeAgent(world, 1);
   a.beliefs.knownEvents = new Set();
   assert.equal(knownEventUrgency(a, world).urgency, 0);
+});
+
+function boothWorld() {
+  const world = { t: 100, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, events: makeEvents(MAP),
+    served: 0 };
+  return world;
+}
+
+test('booth quality: крутой бутик радует и делает евангелистом, помойка — стресс/нытик', () => {
+  const world = boothWorld();
+  const good = makeAgent(world, 1); good.joy = 50; good.goalPoi = 'boothA';
+  MAP.pois.boothA.quality = 0.9;
+  good.x = MAP.pois.boothA.fx; good.y = MAP.pois.boothA.fy;
+  arrive(good, world);
+  assert.ok(good.joy > 50 && good.evangelistUntil > world.t && good.evangelBooth === 'boothA');
+  const bad = makeAgent(world, 2); bad.joy = 50; bad.stress = 10; bad.goalPoi = 'boothB';
+  MAP.pois.boothB.quality = -0.9;
+  bad.x = MAP.pois.boothB.fx; bad.y = MAP.pois.boothB.fy;
+  arrive(bad, world);
+  assert.ok(bad.joy < 50 && bad.stress > 10 && bad.complainUntil > world.t);
+});
+
+test('event attend: знал live-эвент → бонус радости и attended', () => {
+  const world = boothWorld();
+  const ev = world.events[0]; ev.status = 'live';
+  const a = makeAgent(world, 3); a.joy = 50;
+  a.beliefs.knownEvents.add(ev.id);
+  a.goalPoi = ev.poi; a.x = MAP.pois[ev.poi].fx; a.y = MAP.pois[ev.poi].fy;
+  arrive(a, world);
+  assert.ok(a.attendedEvents.has(ev.id) && a.joy > 50 + ev.quality * 25 - 1);
+});
+
+test('computeDesires: сортировка по убыванию, промо поднимает', () => {
+  const world = boothWorld();
+  const a = makeAgent(world, 4);
+  a.beliefs.knownPois = new Set(['boothA', 'boothB']);
+  MAP.pois.boothA.weight = 1; MAP.pois.boothB.weight = 1;
+  a.poiPromo = { boothB: world.t + 60 };
+  const d = computeDesires(a, world);
+  assert.equal(d[0].key, 'boothB', 'промо-бутик первый');
+  assert.ok(d[0].score >= d[d.length - 1].score);
 });
 
 let fail = 0;
