@@ -6,6 +6,7 @@ export function initScore(world) {
     press: { pos: 0, neg: 0 },
     concertWant: 0, concertHit: 0, concertCaptured: false,
     stressHist: [],
+    joyHist: [],
   };
 }
 
@@ -24,6 +25,9 @@ export function scoreTick(world, dt) {
     const avg = world.agents.reduce((sum, a) => sum + a.stress, 0) / (world.agents.length || 1);
     s.stressHist.push(avg);
     if (s.stressHist.length > 60) s.stressHist.shift();
+    const avgJoy = world.agents.reduce((sum, a) => sum + (a.joy ?? 50), 0) / (world.agents.length || 1);
+    s.joyHist.push(avgJoy);
+    if (s.joyHist.length > 60) s.joyHist.shift();
   }
   // журналист «снимает кадр»
   s.pressTimer = (s.pressTimer ?? 0) - dt;
@@ -51,11 +55,20 @@ export function updateScorePanel(world) {
   const s = world.score;
   const avg = s.stressHist[s.stressHist.length - 1] ?? 0;
   const spark = s.stressHist.map(v => '▁▂▃▄▅▆▇█'[Math.min(7, (v / 12.5) | 0)]).join('');
+  const avgJoy = s.joyHist[s.joyHist.length - 1] ?? 0;
+  const joySpark = s.joyHist.map(v => '▁▂▃▄▅▆▇█'[Math.min(7, (v / 12.5) | 0)]).join('');
   const press = s.press.pos - s.press.neg;
+  const live = world.agents.filter(a => a.kind === 'visitor');
+  const sumKnown = live.reduce((s, a) => s + (a.beliefs?.knownEvents?.size ?? 0), 0);
+  const sumAttended = live.reduce((s, a) => s + (a.attendedEvents?.size ?? 0), 0);
+  const evShare = sumKnown > 0 ? Math.round(100 * sumAttended / sumKnown) + '%' : '—';
   el.textContent =
 `── СЧЁТ ──
 стресс ${avg.toFixed(0)}
 ${spark}
+радость ${avgJoy.toFixed(0)}
+${joySpark}
+% эвентов: ${evShare}
 обслужено: ${world.served ?? 0}
 концерт: ${s.concertWant ? Math.round(100 * s.concertHit / s.concertWant) + '%' : '—'}
 ушли злыми: ${s.angry}
