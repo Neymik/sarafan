@@ -9,12 +9,8 @@ export function messagesFor(world) {
       apply(a, w) { a.beliefs.events.concert = { ...f, learnedAt: w.t }; },
     },
     {
-      label: world.facts.doorS.open ? 'Южный вход сцены: открыт' : 'Южный вход ЗАКРЫТ — идите через северный',
-      apply(a, w) {
-        a.beliefs.edgeKnown[10] = a.beliefs.edgeKnown[11] = 1;
-        a.beliefs.edgePassable[10] = w.edgePassable[10];
-        a.beliefs.edgePassable[11] = w.edgePassable[11];
-      },
+      label: 'Двери сцены: запад ' + (world.facts.doorW?.open === false ? 'ЗАКРЫТ' : 'открыт'),
+      apply(a, w) { a.doorMask |= (w.doorsClosed ?? 0); },
     },
     {
       label: 'ЛОЖЬ: «Концерт переносится на 30 мин»', // эксперимент с обманом (доверие — после джама)

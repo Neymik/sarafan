@@ -1,6 +1,5 @@
 import { T, gameClock } from '../data/tuning.js';
-import { makeBeliefs } from './knowledge.js';
-import { findPath, nearestWaypoint } from './pathfinding.js';
+import { randomWalkableNear } from './flowfield.js';
 
 export const PRESETS = [ // веса [goto, wander, phone, rest], доля известной карты
   { name: 'planner',  w: [1.4, 0.6, 0.4, 0.8], mapKnown: 1.0 },
@@ -26,72 +25,45 @@ export function makeAgent(world, id) {
     perception: 1,
     wantsConcert: Math.random() < 0.7,
     stress: 0, fatigue: 0, boredom: 0, phoneItch: Math.random() * 30,
-    activity: 'wander', target: null, path: [], pathI: 0,
+    activity: 'wander', target: null,
+    goalPoi: null, smartUntil: -99, doorMask: 0, talkWalk: false, despawn: false,
     deceivedUntil: -99, lostSince: 0, phoneDoneAt: 0, blockedTime: 0,
     nextThink: Math.random() * T.utilityTickEvery,
-    neighbors: [], density: 0, contact: false, beliefs: makeBeliefs(world.map, p.mapKnown),
+    neighbors: [], density: 0, contact: false,
+    beliefs: {
+      knownPois: new Set(Object.keys(world.map.pois)),
+      jamMarks: [],
+      events: { concert: { time: 14 * 3600, place: 'stage', status: 'on', learnedAt: 0 } },
+    },
   };
 }
 
 export function setGoal(a, world, poiKey) {
-  const poi = world.map.pois[poiKey];
-  const from = nearestWaypoint(world.map, a.x, a.y);
-  const p = findPath(world.map, a.beliefs, from, poi.wp);
-  if (!p) return false;
-  a.path = p; a.pathI = 0;
-  if (p.length > 1) { // не идти назад к стартовому вейпоинту, если следующий уже ближе
-    const w0 = world.map.waypoints[p[0]], w1 = world.map.waypoints[p[1]];
-    if (Math.hypot(w1.x - a.x, w1.y - a.y) < Math.hypot(w0.x - a.x, w0.y - a.y)) a.pathI = 1;
-  }
-  const wpt = world.map.waypoints[poi.wp];
-  a.target = { x: wpt.x + (Math.random() - 0.5) * 3, y: wpt.y + (Math.random() - 0.5) * 3, poi: poiKey };
+  if (!a.beliefs.knownPois.has(poiKey)) return false;
+  a.goalPoi = poiKey; a.target = null;
   return true;
 }
 
-function inZone(a, world, zoneId) {
-  const z = world.map.zones.find(z => z.id === zoneId);
-  if (!z) return false;
-  const r = z.rect;
-  return a.x >= r[0] && a.x <= r[0] + r[2] && a.y >= r[1] && a.y <= r[1] + r[3];
+function nearPoi(a, world, key) {
+  const p = world.map.pois[key];
+  return p ? (p.x - a.x) ** 2 + (p.y - a.y) ** 2 < 16 : false;
 }
 
 export function think(a, world) {
   if (a.activity === 'lost') {
-    // 1) вижу табло — мгновенно узнаю карту (и актуальную проходимость)
-    for (const brd of world.map.boards) {
-      if ((brd.x - a.x) ** 2 + (brd.y - a.y) ** 2 < T.sightRadius ** 2) {
-        for (let i = 0; i < world.map.edges.length; i++) { a.beliefs.edgeKnown[i] = 1; a.beliefs.edgePassable[i] = world.edgePassable[i]; }
-        a.activity = 'wander'; return;
-      }
-    }
-    // 2) сосед-знаток поделился
-    for (const b of a.neighbors) {
-      if (b !== a && b.beliefs && b.activity !== 'phone' &&
-          countKnown(b.beliefs) > countKnown(a.beliefs) + 3) {
-        for (let i = 0; i < world.map.edges.length; i++)
-          if (b.beliefs.edgeKnown[i]) { a.beliefs.edgeKnown[i] = 1; a.beliefs.edgePassable[i] = b.beliefs.edgePassable[i]; }
-        a.activity = 'wander'; return;
-      }
-    }
-    // 3) скачал карту (в толпе медленнее)
-    if (world.t >= a.phoneDoneAt) {
-      for (let i = 0; i < world.map.edges.length; i++) { a.beliefs.edgeKnown[i] = 1; a.beliefs.edgePassable[i] = world.edgePassable[i]; }
-      a.activity = 'wander'; return;
-    }
-    // 4) таймаут — плюнул и забыл цель
-    if (world.t - a.lostSince > T.lostTimeout) { a.wantsConcert = false; a.activity = 'wander'; return; }
-    return; // стоит на месте — тело само собирает пробку
+    // lost block body — simplified for Task 4 bridge
+    a.activity = 'wander'; return;
   }
 
   const f = world.facts.concert, belC = a.beliefs.events.concert;
-  if (a.activity === 'goto' && inZone(a, world, belC.place) &&
+  if (a.activity === 'goto' && nearPoi(a, world, belC.place) &&
       (f.status !== belC.status || f.time !== belC.time)) {
     a.beliefs.events.concert = { ...f, learnedAt: world.t }; // узнал глазами
     const benign = f.status === 'started' && belC.status === 'on' && f.time === belC.time;
     if (!benign) { // «концерт уже идёт, а я успел» — не обман
       a.deceivedUntil = world.t + 15;
       a.stress = Math.min(100, a.stress + 25);
-      a.activity = 'wander'; a.path = []; a.target = null;
+      a.activity = 'wander'; a.goalPoi = null; a.target = null;
       return; // переварит обиду до следующего think
     }
   }
@@ -106,10 +78,12 @@ export function think(a, world) {
   // utility GoTo: срочность концерта по МОЕМУ убеждению
   const bel = a.beliefs.events.concert;
   let goto_ = 0;
-  if (a.wantsConcert && (bel.status === 'on' || bel.status === 'started') && !inZone(a, world, bel.place)) {
+  if (a.wantsConcert && (bel.status === 'on' || bel.status === 'started') && !nearPoi(a, world, bel.place)) {
     const left = bel.time - gameClock(world.t); // игровых секунд до начала
     goto_ = Math.max(0, Math.min(1.5, 1.5 * (1 - left / 1800)));
   }
+  // если уже есть явная цель (goalPoi не концерт) — поддерживаем стремление хотя бы на 0.5
+  if (a.goalPoi && a.goalPoi !== bel.place) goto_ = Math.max(goto_, 0.5);
   const u = {
     goto: a.weights[0] * goto_,
     wander: a.weights[1] * (0.3 + a.boredom / 200),
@@ -121,23 +95,34 @@ export function think(a, world) {
   let best = 'wander', bv = -1;
   for (const k in u) if (u[k] > bv) { bv = u[k]; best = k; }
 
-  if (best === a.activity && a.path.length) return;
+  if (best === a.activity && (a.goalPoi || a.target)) return;
   switch (best) {
     case 'goto':
-      if (!setGoal(a, world, bel.place)) { enterLost(a, world); return; } // enterLost — Task 10
+      if (a.beliefs.knownPois.has(bel.place)) { a.goalPoi = bel.place; a.target = null; }
+      else { enterLost(a, world); return; }
       break;
     case 'wander': {
-      const keys = Object.keys(world.map.pois);
-      if (!setGoal(a, world, keys[(Math.random() * keys.length) | 0])) {
-        a.path = []; // дорог не знает — топчется неподалёку
-        a.target = { x: a.x + (Math.random() - 0.5) * 6, y: a.y + (Math.random() - 0.5) * 6 };
+      const known = [...a.beliefs.knownPois].filter(k => {
+        const p = world.map.pois[k]; return p && !p.exit && p.weight > 0;
+      });
+      // weighted random pick (weight from POI definition)
+      let pick = null;
+      if (known.length) {
+        let sum = 0; for (const k of known) sum += world.map.pois[k].weight;
+        let r = Math.random() * sum;
+        for (const k of known) { r -= world.map.pois[k].weight; if (r <= 0) { pick = k; break; } }
+        if (!pick) pick = known[known.length - 1];
+      }
+      if (!pick || !setGoal(a, world, pick)) {
+        a.goalPoi = null;
+        a.target = randomWalkableNear(world.fields.gridFor(0), a.x, a.y, 6);
       }
       break;
     }
     case 'phone':
-      a.path = []; a.target = null; break;
+      a.goalPoi = null; a.target = null; break;
     case 'rest': {
-      if (!setGoal(a, world, 'chill')) { a.path = []; a.target = null; } // отдыхает где стоит
+      if (!setGoal(a, world, 'info')) { a.goalPoi = null; a.target = null; }
       break;
     }
   }
@@ -148,12 +133,10 @@ export function think(a, world) {
 export function enterLost(a, world) {
   a.activity = 'lost';
   a.perception = 1; // потерявшийся поднимает голову от телефона и озирается
-  a.path = []; a.target = null;
+  a.goalPoi = null; a.target = null;
   a.lostSince = world.t;
   a.stress = Math.min(100, a.stress + T.lostStressSpike);
   for (const b of a.neighbors) if (b !== a && b.stress !== undefined)
     b.stress = Math.min(100, b.stress + T.lostNeighborStress); // паника заразна
   a.phoneDoneAt = world.t + T.phoneMapBase * (1 + T.phoneMapDensityK * a.density); // плотность = перегруз WiFi
 }
-
-function countKnown(B) { let n = 0; for (const k of B.edgeKnown) n += k; return n; }

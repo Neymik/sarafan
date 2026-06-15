@@ -1,14 +1,8 @@
 import assert from 'node:assert';
 import { SpatialHash } from '../src/sim/spatialHash.js';
 import { resolveCollisions, pushOutOfRect } from '../src/sim/steering.js';
-import { findPath, nearestWaypoint } from '../src/sim/pathfinding.js';
 import { MAP } from '../src/data/map.js';
 import { buildGrid, computeField, fieldDir, Fields, isWalkable, randomWalkableNear } from '../src/sim/flowfield.js';
-
-function fullBeliefs() {
-  const E = MAP.edges.length;
-  return { edgeKnown: new Uint8Array(E).fill(1), edgePassable: new Uint8Array(E).fill(1), edgeCongestion: new Uint8Array(E) };
-}
 
 const tests = [];
 export function test(name, fn) { tests.push([name, fn]); }
@@ -47,36 +41,6 @@ test('rect: снаружи отодвигает на радиус от гран�
   pushOutOfRect(c, { x: 5, y: 5, w: 4, h: 4 });
   assert.ok(Math.abs(c.x - (5 - 0.3)) < 1e-9, 'ровно на радиус от грани: ' + c.x);
   assert.equal(c.y, 7);
-});
-
-test('path: спавн → сцена идёт через холл', () => {
-  const p = findPath(MAP, fullBeliefs(), 0, 13);
-  assert.deepEqual(p.slice(0, 2), [0, 1]);
-  assert.equal(p[p.length - 1], 13);
-});
-
-test('path: неизвестное ребро = пути нет', () => {
-  const b = fullBeliefs();
-  b.edgeKnown.fill(0);
-  assert.equal(findPath(MAP, b, 0, 13), null);
-});
-
-test('path: закрытая южная дверь (e10) уводит через северную (e11)', () => {
-  const b = fullBeliefs();
-  b.edgePassable[10] = 0;
-  const p = findPath(MAP, b, 0, 13);
-  assert.ok(p.includes(12), 'идёт через wp12 (северная дверь): ' + p);
-});
-
-test('path: пробка на ребре делает обход выгодным', () => {
-  const b = fullBeliefs();
-  b.edgeCongestion[10] = 255; // южная дверь забита
-  const p = findPath(MAP, b, 0, 13);
-  assert.ok(p.includes(12), 'обход через север: ' + p);
-});
-
-test('nearestWaypoint: центр холла → wp3', () => {
-  assert.equal(nearestWaypoint(MAP, 30, 20), 3);
 });
 
 test('grid: проход проходим, будка и граница нет, закрытая дверь закрыта', () => {

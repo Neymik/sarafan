@@ -1,21 +1,14 @@
 import { T, speedFactor, turnFactor } from '../data/tuning.js';
-import { updateEdgeCongestion, eyesUpdate, osmosis } from './knowledge.js';
 import { think } from './agent.js';
 
 export function simTick(world, dt) {
   const { agents, hash } = world;
   hash.rebuild(agents);
-  world.congTimer -= dt;
-  if (world.congTimer <= 0 && world.edgeCongestion) { world.congTimer = 1; updateEdgeCongestion(world); }
   for (const a of agents) {
     a.neighbors = hash.queryCircle(a.x, a.y, T.densityRadius);
     a.density = a.neighbors.length - 1;
     a.contact = false;
     a.prevX = a.x; a.prevY = a.y; // фактическое смещение за тик измеряется ПОСЛЕ коллизий/стен
-    if (a.beliefs && world.edgePassable) {
-      if (a.perception > 0) eyesUpdate(a, world);
-      osmosis(a, world);
-    }
     a.nextThink -= dt;
     if (a.nextThink <= 0) { a.nextThink = T.utilityTickEvery; if (a.beliefs && world.facts) think(a, world); }
   }
@@ -29,6 +22,16 @@ export function simTick(world, dt) {
     a.y = Math.max(a.radius + 1, Math.min(h - 1 - a.radius, a.y));
   }
   updateStress(world, dt);
+
+  if (world.fields) {
+    world.smartTimer = (world.smartTimer ?? 0) - dt;
+    if (world.smartTimer <= 0) { world.smartTimer = T.smartRecomputeEvery; world.fields.recomputeSmart(agents, world.doorsClosed ?? 0); }
+  }
+
+  if (world.agents.some(a => a.despawn)) {
+    if (world.selected && world.selected.despawn) world.selected = null;
+    world.agents = world.agents.filter(a => !a.despawn);
+  }
 }
 
 function updateStress(world, dt) {
@@ -45,28 +48,31 @@ function updateStress(world, dt) {
   }
 }
 
-export function currentTarget(a, world) {
-  if (a.path && a.pathI < a.path.length) {
-    const wp = world.map.waypoints[a.path[a.pathI]];
-    if (Math.hypot(wp.x - a.x, wp.y - a.y) < 1.2) { a.pathI++; return currentTarget(a, world); }
-    return wp;
-  }
-  return a.target; // финальная точка (POI) после конца цепочки
-}
-
 function stepAgent(a, world, dt) {
   let dx = 0, dy = 0;
-  const wp = currentTarget(a, world);
-  if (wp) {
-    const ex = wp.x - a.x, ey = wp.y - a.y, d = Math.hypot(ex, ey) || 1;
+  let sx = 0, sy = 0, hasGoal = false;
+  if (a.goalPoi && world.fields) {
+    const mode = (a.smartUntil > world.t) ? 'smart' : 'clear';
+    const mask = (a.doorMask ?? 0) & (world.doorsClosed ?? 0);
+    const dir = world.fields.dir(mode, mask, a.goalPoi, a.x, a.y);
+    if (dir) { sx = dir.x; sy = dir.y; hasGoal = true; }
+  }
+  if (!hasGoal && a.target) {
+    const ex = a.target.x - a.x, ey = a.target.y - a.y, d = Math.hypot(ex, ey);
+    if (d > 0.3) { sx = ex / d; sy = ey / d; hasGoal = true; }
+  }
+  if (hasGoal) {
     let mods = 1;
-    if (a.activity === 'wander') mods = 0.6;
+    if (a.activity === 'wander') mods = 0.8;
     if (a.activity === 'phone') mods = 0.15;
+    if (a.activity === 'browse') mods = 0.4;
+    if (a.activity === 'talk') mods = a.talkWalk ? 0.5 : 0;
+    if (a.activity === 'queue') mods = 0.5;
     const speed = a.maxSpeed * speedFactor(a.density) * mods;
-    dx = ex / d * speed; dy = ey / d * speed;
+    dx = sx * speed; dy = sy * speed;
   }
   // течение с толпой
-  if (a.density >= T.alignmentThreshold) {
+  if (a.density >= T.alignmentThreshold && Math.hypot(a.vx, a.vy) > 0.3) {
     let avx = 0, avy = 0, n = 0;
     for (const b of a.neighbors) if (b !== a) { avx += b.vx; avy += b.vy; n++; }
     if (n) {
