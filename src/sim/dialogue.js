@@ -5,8 +5,12 @@ export function bystanderChance(d) {
   return Math.max(0, T.bystanderBase * (1 - d / T.bystanderRadius));
 }
 
-// тема: случайный факт из знаний обоих. kinds: poi | jam | event | obst
+// тема: случайный факт из знаний обоих. kinds: poi | jam | event | obst | boothGood | boothBad
 export function pickTopic(a, b, world) {
+  for (const src of [a, b]) {
+    if (src.evangelistUntil > world.t && src.evangelBooth) return { kind: 'boothGood', key: src.evangelBooth };
+    if (src.complainUntil > world.t && src.complainBooth) return { kind: 'boothBad', key: src.complainBooth };
+  }
   const topics = [];
   for (const src of [a, b]) {
     for (const k of src.beliefs.knownPois) topics.push({ kind: 'poi', poi: k });
@@ -32,6 +36,8 @@ export function applyTopic(agent, topic, t, noMutation = false) {
       }
       break;
     }
+    case 'boothGood': agent.beliefs.knownPois.add(topic.key); agent.poiPromo[topic.key] = t + T.promoTime; break;
+    case 'boothBad': agent.poiCooldown[topic.key] = t + T.poiCooldownTime; break;
   }
 }
 

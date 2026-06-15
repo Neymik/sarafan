@@ -416,6 +416,26 @@ test('event attend: плохой live-эвент не роняет joy ниже 
   assert.ok(a.joy >= 0, 'joy не ушёл в минус: ' + a.joy);
 });
 
+test('сарафан: boothGood учит+промо, boothBad ставит избегание', () => {
+  const a = { beliefs: { knownPois: new Set(), jamMarks: [], knownEvents: new Set(), eventTime: {} },
+    poiPromo: {}, poiCooldown: {}, obstMask: 0 };
+  applyTopic(a, { kind: 'boothGood', key: 'boothA' }, 100);
+  assert.ok(a.beliefs.knownPois.has('boothA') && a.poiPromo.boothA > 100);
+  applyTopic(a, { kind: 'boothBad', key: 'boothB' }, 100);
+  assert.ok(a.poiCooldown.boothB > 100);
+});
+
+test('pickTopic: евангелист эмитит boothGood своего бутика', () => {
+  const ev = { evangelistUntil: 200, evangelBooth: 'boothA', complainUntil: 0,
+    beliefs: { knownPois: new Set(['boothA']), jamMarks: [], knownEvents: new Set(), eventTime: {} }, obstMask: 0 };
+  const other = { evangelistUntil: 0, complainUntil: 0,
+    beliefs: { knownPois: new Set(), jamMarks: [], knownEvents: new Set(), eventTime: {} }, obstMask: 0 };
+  const world = { t: 100, map: { pois: { boothA: {} } }, obstMask: 0 };
+  let got = false;
+  for (let i = 0; i < 20; i++) { const t = pickTopic(ev, other, world); if (t.kind === 'boothGood' && t.key === 'boothA') got = true; }
+  assert.ok(got, 'евангелист хоть раз выдал boothGood');
+});
+
 let fail = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log('ok -', name); }
