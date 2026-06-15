@@ -106,6 +106,7 @@ test('randomWalkableNear: всегда проходимая клетка', () =>
 import { volunteerNpcTick, spawnLeader } from '../src/sim/special.js';
 import { luresTick } from '../src/sim/lures.js';
 import { bystanderChance, pickTopic, applyTopic, finishTalk } from '../src/sim/dialogue.js';
+import { applyBarrierLost, solidRects } from '../src/sim/steering.js';
 import { initQueues, queueTick, queueSlotPos } from '../src/sim/queue.js';
 import { tickSchedule } from '../src/data/schedule.js';
 import { makeWorldFacts } from '../src/sim/knowledge.js';
@@ -470,6 +471,19 @@ test('лидер тащит группу follow', () => {
   assert.equal(L.kind, 'leader');
   const followers = world.agents.filter(x => x.activity === 'follow' && x.followTarget === L.id);
   assert.ok(followers.length >= 3, 'группа набрана: ' + followers.length);
+});
+
+test('память→барьер: visitor утыкается в неизвестный слот → lost + узнал бит', () => {
+  const fl = new Fields(MAP);
+  fl.setSlot(0, { x: 13, y: 20, w: 3, h: 3 });
+  const world = { t: 0, map: MAP, fields: fl, obstMask: 1,
+    obstacles: [...solidRects(MAP), fl.slots[0]], agents: [], hash: new SpatialHash(1) };
+  const a = makeAgent(world, 1); a.kind = 'visitor'; a.obstMask = 0;     // не знает барьер
+  a.x = 14.5; a.y = 21.5; a.radius = 0.3;                                 // внутри слота
+  world.agents.push(a);
+  applyBarrierLost(a, world);
+  assert.ok(a.obstMask & 1, 'узнал бит');
+  assert.equal(a.activity, 'lost');
 });
 
 let fail = 0;

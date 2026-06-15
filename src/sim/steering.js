@@ -1,8 +1,9 @@
 import { T, speedFactor, turnFactor } from '../data/tuning.js';
-import { think } from './agent.js';
+import { think, enterLost } from './agent.js';
 import { eyesUpdate } from './knowledge.js';
 import { dialogueTick } from './dialogue.js';
 import { queueTick } from './queue.js';
+export { solidRects } from '../data/map.js';
 import { solidRects } from '../data/map.js';
 
 export function simTick(world, dt) {
@@ -23,10 +24,21 @@ export function simTick(world, dt) {
   for (const a of agents) if (!a.dragged) stepAgent(a, world, dt);
   resolveCollisions(world);
   const { w, h } = world.map;
-  const obs = world.obstacles ?? solidRects(world.map);
+  const solids = solidRects(world.map);
+  const slots = (world.fields?.slots ?? []);
   for (const a of agents) {
     if (a.dragged) continue;
-    for (const r of obs) pushOutOfRect(a, r);
+    for (const r of solids) pushOutOfRect(a, r);
+    for (const s of slots) {
+      if (!s) continue;
+      const nx = Math.max(s.x, Math.min(s.x + s.w, a.x));
+      const ny = Math.max(s.y, Math.min(s.y + s.h, a.y));
+      const before = (a.x - nx) ** 2 + (a.y - ny) ** 2;
+      pushOutOfRect(a, s);
+      if (before < a.radius * a.radius && a.kind === 'visitor') {
+        a._hitRect = s; applyBarrierLost(a, world); a._hitRect = null;
+      }
+    }
     a.x = Math.max(a.radius + 1, Math.min(w - 1 - a.radius, a.x));
     a.y = Math.max(a.radius + 1, Math.min(h - 1 - a.radius, a.y));
   }
@@ -47,6 +59,25 @@ export function simTick(world, dt) {
 export function updateNeedsJoy(a, dt) {
   if (a.joy > T.joyBaseline) a.joy = Math.max(T.joyBaseline, a.joy - T.joyDecay * dt);
   a.joy = Math.max(0, Math.min(100, a.joy));
+}
+
+export function applyBarrierLost(a, world) {
+  let bit = 0;
+  (world.fields?.slots ?? []).forEach((s, i) => {
+    if (!s) return;
+    if (a._hitRect === s) { bit = 1 << i; return; }
+    // fallback: detect by overlap (when called directly without _hitRect set)
+    if (!a._hitRect) {
+      const nx = Math.max(s.x, Math.min(s.x + s.w, a.x));
+      const ny = Math.max(s.y, Math.min(s.y + s.h, a.y));
+      if ((a.x - nx) ** 2 + (a.y - ny) ** 2 < a.radius * a.radius) bit = 1 << i;
+    }
+  });
+  if (!bit) return;
+  if (a.obstMask & bit) return;          // уже знал — не теряется
+  a.obstMask |= bit;
+  a.stress = Math.min(100, a.stress + 10);
+  enterLost(a, world, a.goalPoi);        // несёт obst в диалогах (тема obst уже спредит)
 }
 
 function updateStress(world, dt) {
