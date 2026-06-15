@@ -16,7 +16,7 @@ function serveDone(world, a, poiKey) {
   a.boredom = 0;
   a.visitedCount++;
   a.poiCooldown[poiKey] = world.t + T.poiCooldownTime;
-  a.mobSince = undefined;
+  a.mobSince = undefined; a.mobPoi = undefined;
   a.activity = 'wander'; a.goalPoi = null; a.target = null;
   world.served = (world.served ?? 0) + 1;
 }
@@ -45,6 +45,7 @@ export function queueTick(world, dt) {
       if (a.stress > T.queueDefectStress || slot > T.queueDefectSlot || headDensity > T.mobThreshold) {
         a.activity = 'mobbing';
         a.target = { x: poi.x, y: poi.y };
+        a.mobPoi = key;
         a.mobSince ??= world.t;
         return false;
       }
@@ -78,12 +79,12 @@ export function queueTick(world, dt) {
     // слоты: каждый агент в очереди получает целевую позицию (после обслуживания — сдвиг)
     q.line.forEach((a, slot) => { a.target = queueSlotPos(poi, slot); });
 
-    // mobbing-таймаут: устал толкаться — плюнул и ушёл
+    // mobbing-таймаут: устал толкаться — плюнул и ушёл (только моберы ЭТОГО poi)
     for (const a of world.agents) {
-      if (a.activity !== 'mobbing') continue;
+      if (a.activity !== 'mobbing' || a.mobPoi !== key) continue;
       a.mobSince ??= world.t;
       if (world.t - a.mobSince > 30) {
-        a.mobSince = undefined;
+        a.mobSince = undefined; a.mobPoi = undefined;
         a.poiCooldown[key] = world.t + T.poiCooldownTime;
         a.activity = 'wander'; a.target = null;
         a.stress = Math.min(100, a.stress + 10);
