@@ -65,7 +65,6 @@ export function dialogueTick(world, dt) {
       const dur = T.talkMin + Math.random() * (T.talkMax - T.talkMin);
       const sameDir = (a.vx * b.vx + a.vy * b.vy) > 0 && Math.hypot(a.vx, a.vy) > 0.5;
       for (const x of [a, b]) {
-        x.prevActivity = x.activity;
         x.activity = 'talk';
         x.talkWith = x === a ? b.id : a.id;
         x.talkEndAt = world.t + dur;
@@ -89,6 +88,7 @@ function finishTalk(world, a, b) {
       for (const x of peers) if (Math.random() < T.talkTransfer) applyTopic(x, topic, world.t);
       // зеваки
       const mx = (a.x + bActive.x) / 2, my = (a.y + bActive.y) / 2;
+      world.flashes.push({ x: mx, y: my, t: world.t, r: T.bystanderRadius }); // мини-волна знания
       for (const o of world.hash.queryCircle(mx, my, T.bystanderRadius)) {
         if (o === a || o === bActive || !o.beliefs || o.perception <= 0) continue;
         if (Math.random() < bystanderChance(Math.hypot(o.x - mx, o.y - my))) applyTopic(o, topic, world.t);

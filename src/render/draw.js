@@ -59,6 +59,6 @@ function drawFlashes(ctx, world) {
   for (const f of world.flashes) {
     const age = (world.t - f.t) / 1.2;
     ctx.strokeStyle = `rgba(120,255,160,${1 - age})`; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(f.x * S, f.y * S, age * T.boardRadius * S, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(f.x * S, f.y * S, age * (f.r ?? T.boardRadius) * S, 0, 7); ctx.stroke();
   }
 }

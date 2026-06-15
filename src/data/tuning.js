@@ -16,7 +16,6 @@ export const T = {
   blockedStressAfter: 3, blockedStressRate: 2.0,
   // знание
   sightRadius: 8,
-  osmosisChance: 0.01,    // за тик на соседа
   rumorMutation: 0.1,
   boardRadius: 6,
   lagRed: 20,             // реальных сек устаревания до красного
