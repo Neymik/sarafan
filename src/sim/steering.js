@@ -19,8 +19,12 @@ export function simTick(world, dt) {
 }
 
 export function currentTarget(a, world) {
-  // Task 5 заменит на цепочку вейпоинтов; пока — прямая цель
-  return a.target;
+  if (a.path && a.pathI < a.path.length) {
+    const wp = world.map.waypoints[a.path[a.pathI]];
+    if (Math.hypot(wp.x - a.x, wp.y - a.y) < 1.2) { a.pathI++; return currentTarget(a, world); }
+    return wp;
+  }
+  return a.target; // финальная точка (POI) после конца цепочки
 }
 
 function stepAgent(a, world, dt) {

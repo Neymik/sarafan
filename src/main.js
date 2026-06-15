@@ -4,6 +4,7 @@ import { draw } from './render/draw.js';
 import { makeAgent } from './sim/agent.js';
 import { SpatialHash } from './sim/spatialHash.js';
 import { simTick } from './sim/steering.js';
+import { findPath, nearestWaypoint } from './sim/pathfinding.js';
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -14,8 +15,15 @@ window.addEventListener('keydown', e => { if (e.key === 'd') world.debug = !worl
 
 for (let i = 0; i < T.agentCount; i++) {
   const a = makeAgent(world, i);
-  const z = world.map.zones[(Math.random() * world.map.zones.length) | 0].rect;
-  a.target = { x: z[0] + Math.random() * z[2], y: z[1] + Math.random() * z[3] }; // ВРЕМЕННО, уберётся в Task 5
+  const poiKeys = Object.keys(world.map.pois);
+  const poi = world.map.pois[poiKeys[(Math.random() * poiKeys.length) | 0]];
+  const full = { edgeKnown: new Uint8Array(world.map.edges.length).fill(1),
+                 edgePassable: new Uint8Array(world.map.edges.length).fill(1),
+                 edgeCongestion: new Uint8Array(world.map.edges.length) }; // ВРЕМЕННО до Task 8
+  a.path = findPath(world.map, full, nearestWaypoint(world.map, a.x, a.y), poi.wp) || [];
+  a.pathI = 0;
+  const wpt = world.map.waypoints[poi.wp];
+  a.target = { x: wpt.x + (Math.random() - 0.5) * 3, y: wpt.y + (Math.random() - 0.5) * 3 };
   world.agents.push(a);
 }
 
