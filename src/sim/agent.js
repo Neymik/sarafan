@@ -103,7 +103,7 @@ export function think(a, world) {
   // utility GoTo: срочность концерта по МОЕМУ убеждению
   const bel = a.beliefs.events.concert;
   let goto_ = 0;
-  if (a.wantsConcert && bel.status === 'on' && !inZone(a, world, bel.place)) {
+  if (a.wantsConcert && (bel.status === 'on' || bel.status === 'started') && !inZone(a, world, bel.place)) {
     const left = bel.time - gameClock(world.t); // игровых секунд до начала
     goto_ = Math.max(0, Math.min(1.5, 1.5 * (1 - left / 1800)));
   }
