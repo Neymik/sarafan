@@ -56,6 +56,42 @@ function inZone(a, world, zoneId) {
 }
 
 export function think(a, world) {
+  if (a.activity === 'lost') {
+    // 1) вижу табло — мгновенно узнаю карту
+    for (const brd of world.map.boards) {
+      if ((brd.x - a.x) ** 2 + (brd.y - a.y) ** 2 < T.sightRadius ** 2) {
+        for (let i = 0; i < world.map.edges.length; i++) a.beliefs.edgeKnown[i] = 1;
+        a.activity = 'wander'; return;
+      }
+    }
+    // 2) сосед-знаток поделился
+    for (const b of a.neighbors) {
+      if (b !== a && b.beliefs && b.activity !== 'phone' &&
+          countKnown(b.beliefs) > countKnown(a.beliefs) + 3) {
+        for (let i = 0; i < world.map.edges.length; i++)
+          if (b.beliefs.edgeKnown[i]) { a.beliefs.edgeKnown[i] = 1; a.beliefs.edgePassable[i] = b.beliefs.edgePassable[i]; }
+        a.activity = 'wander'; return;
+      }
+    }
+    // 3) скачал карту (в толпе медленнее)
+    if (world.t >= a.phoneDoneAt) {
+      for (let i = 0; i < world.map.edges.length; i++) { a.beliefs.edgeKnown[i] = 1; a.beliefs.edgePassable[i] = world.edgePassable[i]; }
+      a.activity = 'wander'; return;
+    }
+    // 4) таймаут — плюнул и забыл цель
+    if (world.t - a.lostSince > T.lostTimeout) { a.wantsConcert = false; a.activity = 'wander'; return; }
+    return; // стоит на месте — тело само собирает пробку
+  }
+
+  const f = world.facts.concert, belC = a.beliefs.events.concert;
+  if (a.activity === 'goto' && inZone(a, world, belC.place) &&
+      (f.status !== belC.status || f.time !== belC.time)) {
+    a.beliefs.events.concert = { ...f, learnedAt: world.t }; // узнал глазами
+    a.deceivedUntil = world.t + 15;
+    a.stress = Math.min(100, a.stress + 25);
+    a.activity = 'wander'; a.path = [];
+  }
+
   const dt = T.utilityTickEvery;
   // нужды
   const moving = Math.hypot(a.vx, a.vy) > 0.3;
@@ -105,4 +141,14 @@ export function think(a, world) {
   a.perception = best === 'phone' ? 0 : 1;
 }
 
-export function enterLost(a, world) {} // заглушка, Task 10
+export function enterLost(a, world) {
+  a.activity = 'lost';
+  a.path = []; a.target = null;
+  a.lostSince = world.t;
+  a.stress = Math.min(100, a.stress + T.lostStressSpike);
+  for (const b of a.neighbors) if (b !== a && b.stress !== undefined)
+    b.stress = Math.min(100, b.stress + T.lostNeighborStress); // паника заразна
+  a.phoneDoneAt = world.t + T.phoneMapBase * (1 + T.phoneMapDensityK * a.density); // плотность = перегруз WiFi
+}
+
+function countKnown(B) { let n = 0; for (const k of B.edgeKnown) n += k; return n; }
