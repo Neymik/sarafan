@@ -1,5 +1,8 @@
 import { T, gameClock } from './tuning.js';
 
+// game-seconds elapsed since 13:00 (events use offset from 13:00, gameClock returns absolute)
+function gameOffset(t) { return gameClock(t) - 13 * 3600; }
+
 // Стартовое расписание (организатор видит все, агенты — частично). time/dur в игр. сек от 13:00.
 export function makeEvents(map) {
   const h = (hh, mm) => (hh - 13) * 3600 + mm * 60;
@@ -21,7 +24,7 @@ export function makeEvents(map) {
 }
 
 export function eventStatusTick(world) {
-  const gc = gameClock(world.t);
+  const gc = gameOffset(world.t);
   for (const e of world.events) {
     if (e.status === 'upcoming' && gc >= e.time) {
       e.status = 'live'; e.changedAt = world.t;
@@ -47,11 +50,12 @@ export function eventRescheduleTick(world, forceId) {
 // срочность известного агенту эвента в [0..1.5] и его POI (для утилити/желаний)
 export function knownEventUrgency(a, world) {
   let best = 0, poi = null;
+  const gc = gameOffset(world.t);
   for (const ev of (world.events ?? [])) {
     if (!a.beliefs.knownEvents.has(ev.id) || ev.status === 'over' || a.attendedEvents?.has(ev.id)) continue;
     if (!a.beliefs.knownPois.has(ev.poi)) continue;
     const bt = a.beliefs.eventTime[ev.id] ?? ev.time;
-    const left = bt - gameClock(world.t);
+    const left = bt - gc;
     let u = Math.max(0, Math.min(1.5, 1.5 * (1 - left / 1800)));
     if (ev.status === 'live') u = Math.max(u, 1.2);
     const score = u * ev.hype;
