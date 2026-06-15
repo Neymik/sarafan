@@ -193,7 +193,8 @@ export function think(a, world) {
     wander: a.weights[1] * (0.3 + a.boredom / 200),
     phone: a.weights[2] * (a.phoneItch / 100),
     rest: a.weights[3] * ((a.fatigue + a.stress * 0.7) / 120),
-    leave: T.leaveWeight * Math.max(0, Math.min(1.5, (a.visitedCount / a.satThreshold) * 0.8 + a.fatigue / 150)),
+    leave: (world.closing ? 1.6 : T.leaveWeight) *
+      Math.max(world.closing ? 0.8 : 0, Math.min(1.5, (a.visitedCount / a.satThreshold) * 0.8 + a.fatigue / 150)),
   };
   if (u[a.activity] !== undefined) u[a.activity] *= T.hysteresis;
 

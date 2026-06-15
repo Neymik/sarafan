@@ -105,6 +105,9 @@ test('randomWalkableNear: всегда проходимая клетка', () =>
 
 import { bystanderChance, pickTopic, applyTopic } from '../src/sim/dialogue.js';
 import { initQueues, queueTick, queueSlotPos } from '../src/sim/queue.js';
+import { tickSchedule } from '../src/data/schedule.js';
+import { makeWorldFacts } from '../src/sim/knowledge.js';
+import { simTick } from '../src/sim/steering.js';
 
 test('dialogue: шанс зеваки падает с расстоянием до нуля', () => {
   assert.ok(Math.abs(bystanderChance(0) - 0.1) < 1e-9);
@@ -146,6 +149,20 @@ test('queue: обслуживание двигает очередь, обслу�
   assert.ok(a.stress < 50, 'обслуженный сбросил стресс');
   assert.equal(a.activity, 'wander');
   assert.equal(b.target.x, queueSlotPos(poi, 0).x, 'второй переехал в слот 0');
+});
+
+test('волна открытия: ~200 за 10 сек, все в проходимых клетках', () => {
+  const world = {
+    t: 0, map: MAP, agents: [], flashes: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0,
+    score: { incidents: 0, angry: 0 },
+  };
+  initQueues(world);
+  const dt = 1 / 30;
+  for (let i = 0; i < Math.round(10.5 / dt); i++) { tickSchedule(world); simTick(world, dt); world.t += dt; }
+  assert.ok(Math.abs(world.agents.length - 200) <= 10, 'спавнено: ' + world.agents.length);
+  const g = world.fields.gridFor(0);
+  for (const a of world.agents) assert.ok(isWalkable(g, a.x, a.y), `в стене (${a.x.toFixed(1)},${a.y.toFixed(1)})`);
 });
 
 let fail = 0;

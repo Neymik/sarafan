@@ -3,6 +3,7 @@ import { think } from './agent.js';
 import { eyesUpdate } from './knowledge.js';
 import { dialogueTick } from './dialogue.js';
 import { queueTick } from './queue.js';
+import { solidRects } from '../data/map.js';
 
 export function simTick(world, dt) {
   const { agents, hash } = world;
@@ -22,7 +23,7 @@ export function simTick(world, dt) {
   for (const a of agents) if (!a.dragged) stepAgent(a, world, dt);
   resolveCollisions(world);
   const { w, h } = world.map;
-  const obs = world.obstacles ?? world.map.blocks;
+  const obs = world.obstacles ?? solidRects(world.map);
   for (const a of agents) {
     if (a.dragged) continue;
     for (const r of obs) pushOutOfRect(a, r);
