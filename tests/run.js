@@ -374,14 +374,14 @@ function boothWorld() {
 }
 
 test('booth quality: крутой бутик радует и делает евангелистом, помойка — стресс/нытик', () => {
+  MAP.pois.boothA.quality = 0.9;   // явно задаём, чтобы тест не зависел от порядка
+  MAP.pois.boothB.quality = -0.9;
   const world = boothWorld();
   const good = makeAgent(world, 1); good.joy = 50; good.goalPoi = 'boothA';
-  MAP.pois.boothA.quality = 0.9;
   good.x = MAP.pois.boothA.fx; good.y = MAP.pois.boothA.fy;
   arrive(good, world);
   assert.ok(good.joy > 50 && good.evangelistUntil > world.t && good.evangelBooth === 'boothA');
   const bad = makeAgent(world, 2); bad.joy = 50; bad.stress = 10; bad.goalPoi = 'boothB';
-  MAP.pois.boothB.quality = -0.9;
   bad.x = MAP.pois.boothB.fx; bad.y = MAP.pois.boothB.fy;
   arrive(bad, world);
   assert.ok(bad.joy < 50 && bad.stress > 10 && bad.complainUntil > world.t);
@@ -399,6 +399,7 @@ test('event attend: знал live-эвент → бонус радости и at
 
 test('computeDesires: сортировка по убыванию, промо поднимает', () => {
   const world = boothWorld();
+  world.events = []; // без случайных сюрприз-эвентов на бутиках — чистая weight×promo-сортировка
   const a = makeAgent(world, 4);
   a.beliefs.knownPois = new Set(['boothA', 'boothB']);
   MAP.pois.boothA.weight = 1; MAP.pois.boothB.weight = 1;
