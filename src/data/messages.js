@@ -31,7 +31,7 @@ export function makeBoardMessages(world) {
 // варианты для UI-селектов
 export function composerOptions(world) {
   const pois = Object.entries(world.map.pois)
-    .filter(([k, p]) => !p.exit && !p.staff && !p.soldOut)
+    .filter(([k, p]) => !p.exit && !p.staff && !p.soldOut && p.weight > 0)
     .map(([k, p]) => ({ key: k, label: p.label }));
   const f = world.facts.concert;
   return {

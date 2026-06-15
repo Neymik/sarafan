@@ -10,7 +10,7 @@ const px2m = (canvas, e) => {
 
 export function initTools(canvas, world) {
   world.ui = { mode: 'cursor', dragging: null, holdTimer: null, holdAgent: null,
-    paUntil: 0, rumorUntil: 0, shiftUsed: false };
+    paUntil: 0, rumorUntil: 0, shiftUsed: false, dragFrom: null };
   world.volunteers = [];
 
   const bar = document.getElementById('toolbar');
@@ -81,6 +81,7 @@ export function initTools(canvas, world) {
 
   canvas.addEventListener('mousedown', e => {
     const m = px2m(canvas, e);
+    if (world.map.boards.some(b => Math.hypot(b.x - m.x, b.y - m.y) < 2)) return;
     if (world.ui.mode === 'barrier') return placeBarrier(world, m);
     if (world.ui.mode === 'volunteer') return placeVolunteer(world, m);
     // cursor: возможный драг — ждём dragHold
@@ -94,6 +95,7 @@ export function initTools(canvas, world) {
     world.ui.holdTimer = setTimeout(() => {
       best.dragged = true;
       world.ui.dragging = best;
+      world.ui.dragFrom = { x: best.x, y: best.y };
       world.ui.holdAgent = null;
     }, T.dragHold * 1000);
   });
@@ -110,7 +112,10 @@ export function initTools(canvas, world) {
     const g = world.fields.gridFor(0);
     if (!isWalkable(g, a.x, a.y)) { const p = randomWalkableNear(g, a.x, a.y, 4); a.x = p.x; a.y = p.y; }
     a.vx = a.vy = 0;
-    enterLost(a, world, null);   // приземлился — «да где я вообще?!»
+    if (world.ui.dragFrom && Math.hypot(a.x - world.ui.dragFrom.x, a.y - world.ui.dragFrom.y) > 1) {
+      enterLost(a, world, null);   // реально перенесён — «да где я вообще?!»
+    }
+    world.ui.dragFrom = null;
   });
 }
 
@@ -128,7 +133,8 @@ function placeBarrier(world, m) {
   if (!isWalkable(g, m.x, m.y)) return;
   const slot = [0, 1, 2].find(i => !world.fields.slots[i]);
   if (slot === undefined) { world.banner = { text: 'Все ленты заняты — сними одну', t: world.t }; return; }
-  world.fields.setSlot(slot, { x: (m.x | 0) - 0.5, y: (m.y | 0) - 0.5, w: 2, h: 2 });
+  // 3×3 — пломбирует 3-метровый проход одним кликом; визуал = хитбокс = штамп
+  world.fields.setSlot(slot, { x: (m.x | 0) - 1, y: (m.y | 0) - 1, w: 3, h: 3 });
   world.syncObstacles();
 }
 
