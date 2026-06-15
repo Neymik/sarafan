@@ -252,6 +252,8 @@ test('слух: заражает одного с пометкой свежест
   assert.equal(infected[0].beliefs.events.concert.learnedAt, world.t, 'слух свежее правды');
 });
 
+import { makeEvents, eventStatusTick, eventRescheduleTick, knownEventUrgency } from '../src/data/events.js';
+import { T } from '../src/data/tuning.js';
 import { incidentsTick } from '../src/sim/incidents.js';
 
 test('joy: дрейф к базису сверху, снизу не падает сам', () => {
@@ -323,6 +325,32 @@ test('booths: острова стали бутиками-POI с хайпом и 
   }
   const g = buildGrid(MAP, [null,null,null,null,null], 0);
   for (const b of booths) assert.equal(isWalkable(g, b.fx, b.fy), true, 'фронт проходим');
+});
+
+test('events: makeEvents даёт расписание со статусами upcoming', () => {
+  const evs = makeEvents(MAP);
+  assert.ok(evs.length >= 3);
+  assert.ok(evs.every(e => e.status === 'upcoming' && e.id && e.poi && e.hype > 0));
+});
+
+test('events: статус upcoming→live→over по истинному времени', () => {
+  const world = { t: 0, map: MAP, events: makeEvents(MAP), agents: [], banner: null };
+  const ev = world.events[0];
+  world.t = (ev.time + 60) / T.timeScale;            // позже старта
+  eventStatusTick(world);
+  assert.equal(ev.status, 'live');
+  world.t = (ev.time + ev.dur + 60) / T.timeScale;   // позже конца
+  eventStatusTick(world);
+  assert.equal(ev.status, 'over');
+});
+
+test('events: reschedule двигает время upcoming, не трогает поверенное', () => {
+  const world = { t: 0, map: MAP, events: makeEvents(MAP) };
+  const ev = world.events.find(e => e.status === 'upcoming');
+  const before = ev.time;
+  eventRescheduleTick(world, ev.id);                 // форс конкретного
+  assert.notEqual(ev.time, before);
+  assert.ok(ev.changedAt === world.t);
 });
 
 let fail = 0;
