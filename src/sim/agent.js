@@ -156,12 +156,16 @@ export function think(a, world) {
   if (a.activity === 'browse' && world.t < a.browseUntil) return;
 
   // прибытие к цели
-  if (a.goalPoi && nearPoi(a, world, a.goalPoi)) {
+  if (a.goalPoi) {
     const p = world.map.pois[a.goalPoi];
-    if (p.exit) { a.despawn = true; return; }
-    if (p.service) return; // вступление в очередь делает queue.js (queueTick)
-    arrive(a, world);
-    return;
+    if (p.exit) {  // выходы всасывают издалека при закрытии — иначе давка в дверях
+      const r2 = world.closing ? 81 : 16;
+      if ((p.fx - a.x) ** 2 + (p.fy - a.y) ** 2 < r2) { a.despawn = true; return; }
+    } else if (nearPoi(a, world, a.goalPoi)) {
+      if (p.service) return; // вступление в очередь делает queue.js (queueTick)
+      arrive(a, world);
+      return;
+    }
   }
 
   // реакция на затор впереди (только когда есть цель-поле)

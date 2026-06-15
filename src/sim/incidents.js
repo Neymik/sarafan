@@ -12,7 +12,7 @@ export function incidentsTick(world, dt) {
     const d = world.fields.density, g = world.fields.gridFor(0);
     const seen = new Set();
     for (let i = 0; i < d.length; i++) {
-      if (d[i] < 6) continue;
+      if (d[i] < 3) continue; // пре-фильтр по клетке; настоящая проверка — queryCircle ниже
       const x = i % g.W + 0.5, y = ((i / g.W) | 0) + 0.5;
       if (world.hash.queryCircle(x, y, 1.5).length > T.incidentDensity) {
         seen.add(i);
