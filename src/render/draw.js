@@ -1,4 +1,5 @@
 import { T } from '../data/tuning.js';
+import { knowledgeLag } from '../sim/knowledge.js';
 const S = T.pxPerMeter;
 
 export function draw(ctx, world) {
@@ -19,7 +20,12 @@ export function draw(ctx, world) {
   drawFlashes(ctx, world);
 }
 
-export function agentColor(a, world) { return '#7c7'; } // заменится в Task 8
+export function agentColor(a, world) {
+  if (world.t < a.deceivedUntil) return '#b06ee8';            // обманутый — фиолетовый
+  const lag = Math.min(1, knowledgeLag(a, world) / T.lagRed); // 0 зел → 1 красн
+  const r = Math.round(80 + 175 * lag), g = Math.round(200 - 140 * lag);
+  return `rgb(${r},${g},80)`;
+}
 
 function drawAgents(ctx, world) {
   for (const a of world.agents) {

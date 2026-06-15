@@ -1,4 +1,5 @@
 import { T } from '../data/tuning.js';
+import { makeBeliefs } from './knowledge.js';
 
 export const PRESETS = [ // веса [goto, wander, phone, rest], доля известной карты
   { name: 'planner',  w: [1.4, 0.6, 0.4, 0.8], mapKnown: 1.0 },
@@ -27,6 +28,6 @@ export function makeAgent(world, id) {
     activity: 'wander', target: null, path: [], pathI: 0,
     deceivedUntil: -99, lostSince: 0, phoneDoneAt: 0, blockedTime: 0,
     nextThink: Math.random() * T.utilityTickEvery,
-    neighbors: [], density: 0, contact: false, beliefs: null, // beliefs — Task 8
+    neighbors: [], density: 0, contact: false, beliefs: makeBeliefs(world.map, p.mapKnown),
   };
 }

@@ -1,13 +1,20 @@
 import { T, speedFactor, turnFactor } from '../data/tuning.js';
+import { updateEdgeCongestion, eyesUpdate, osmosis } from './knowledge.js';
 
 export function simTick(world, dt) {
   const { agents, hash } = world;
   hash.rebuild(agents);
+  world.congTimer -= dt;
+  if (world.congTimer <= 0 && world.edgeCongestion) { world.congTimer = 1; updateEdgeCongestion(world); }
   for (const a of agents) {
     a.neighbors = hash.queryCircle(a.x, a.y, T.densityRadius);
     a.density = a.neighbors.length - 1;
     a.contact = false;
     a.prevX = a.x; a.prevY = a.y; // фактическое смещение за тик измеряется ПОСЛЕ коллизий/стен
+    if (a.beliefs && world.edgePassable) {
+      if (a.perception > 0) eyesUpdate(a, world);
+      osmosis(a, world);
+    }
   }
   for (const a of agents) stepAgent(a, world, dt);
   resolveCollisions(world);

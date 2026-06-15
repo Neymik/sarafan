@@ -5,11 +5,15 @@ import { makeAgent } from './sim/agent.js';
 import { SpatialHash } from './sim/spatialHash.js';
 import { simTick } from './sim/steering.js';
 import { findPath, nearestWaypoint } from './sim/pathfinding.js';
+import { makeWorldFacts } from './sim/knowledge.js';
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
-export const world = { t: 0, map: MAP, agents: [], flashes: [], debug: false, hash: new SpatialHash(1) };
+export const world = { t: 0, map: MAP, agents: [], flashes: [], debug: false, hash: new SpatialHash(1),
+  facts: makeWorldFacts(), edgePassable: new Uint8Array(MAP.edges.length).fill(1),
+  edgeCongestion: new Uint8Array(MAP.edges.length), congTimer: 0 };
+window.world = world;
 
 window.addEventListener('keydown', e => { if (e.key === 'd') world.debug = !world.debug; });
 
@@ -17,10 +21,7 @@ for (let i = 0; i < T.agentCount; i++) {
   const a = makeAgent(world, i);
   const poiKeys = Object.keys(world.map.pois);
   const poi = world.map.pois[poiKeys[(Math.random() * poiKeys.length) | 0]];
-  const full = { edgeKnown: new Uint8Array(world.map.edges.length).fill(1),
-                 edgePassable: new Uint8Array(world.map.edges.length).fill(1),
-                 edgeCongestion: new Uint8Array(world.map.edges.length) }; // ВРЕМЕННО до Task 8
-  a.path = findPath(world.map, full, nearestWaypoint(world.map, a.x, a.y), poi.wp) || [];
+  a.path = findPath(world.map, a.beliefs, nearestWaypoint(world.map, a.x, a.y), poi.wp) || [];
   a.pathI = 0;
   if (a.path.length > 1) { // не идти назад к стартовому вейпоинту, если следующий уже ближе
     const w0 = world.map.waypoints[a.path[0]], w1 = world.map.waypoints[a.path[1]];
