@@ -7,6 +7,7 @@ export function simTick(world, dt) {
     a.neighbors = hash.queryCircle(a.x, a.y, T.densityRadius);
     a.density = a.neighbors.length - 1;
     a.contact = false;
+    a.prevX = a.x; a.prevY = a.y; // фактическое смещение за тик измеряется ПОСЛЕ коллизий/стен
   }
   for (const a of agents) stepAgent(a, world, dt);
   resolveCollisions(world);
@@ -24,8 +25,8 @@ function updateStress(world, dt) {
     let ds = -T.stressDecay;
     ds += T.stressFromDensity * Math.max(0, a.density - T.comfortN);
     if (a.contact) ds += T.stressFromContact;
-    // «не могу продвинуться»
-    const moving = Math.hypot(a.vx, a.vy);
+    // «не могу продвинуться»: скорость врёт (PBD/стены правят позицию), мерим смещение
+    const moving = Math.hypot(a.x - (a.prevX ?? a.x), a.y - (a.prevY ?? a.y)) / dt;
     if (a.activity === 'goto' && moving < 0.2 * a.maxSpeed) a.blockedTime += dt;
     else a.blockedTime = 0;
     if (a.blockedTime > T.blockedStressAfter) ds += T.blockedStressRate;
