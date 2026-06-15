@@ -12,7 +12,7 @@ export const T = {
   alignmentThreshold: 4,
   // нужды/стресс (в единицах за реальную секунду)
   fatigueRate: 0.6, boredomRate: 1.2, phoneItchRate: 1.0,
-  stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 1.5,
+  stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 3.0, // равновесие ≈ 5.5 соседей
   blockedStressAfter: 3, blockedStressRate: 2.0,
   // знание
   sightRadius: 8,

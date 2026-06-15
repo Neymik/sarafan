@@ -87,10 +87,13 @@ export function think(a, world) {
   if (a.activity === 'goto' && inZone(a, world, belC.place) &&
       (f.status !== belC.status || f.time !== belC.time)) {
     a.beliefs.events.concert = { ...f, learnedAt: world.t }; // узнал глазами
-    a.deceivedUntil = world.t + 15;
-    a.stress = Math.min(100, a.stress + 25);
-    a.activity = 'wander'; a.path = []; a.target = null;
-    return; // переварит обиду до следующего think
+    const benign = f.status === 'started' && belC.status === 'on' && f.time === belC.time;
+    if (!benign) { // «концерт уже идёт, а я успел» — не обман
+      a.deceivedUntil = world.t + 15;
+      a.stress = Math.min(100, a.stress + 25);
+      a.activity = 'wander'; a.path = []; a.target = null;
+      return; // переварит обиду до следующего think
+    }
   }
 
   const dt = T.utilityTickEvery;
