@@ -22,6 +22,16 @@ export function draw(ctx, world) {
   }
   drawAgents(ctx, world);
   drawFlashes(ctx, world);
+  if (world.selected && !world.selected.despawn) {
+    const a = world.selected;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(a.x * S, a.y * S, (a.radius + 0.4) * S, 0, 7); ctx.stroke();
+    const goal = a.goalPoi ? world.map.pois[a.goalPoi] : a.target;
+    if (goal) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(a.x * S, a.y * S); ctx.lineTo(goal.x * S, goal.y * S); ctx.stroke();
+    }
+  }
 }
 
 export function agentColor(a, world) {

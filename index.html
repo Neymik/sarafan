@@ -5,9 +5,12 @@
   canvas{background:#14141c}
   #cards{position:fixed;display:none;flex-direction:column;gap:6px;background:#222;padding:10px;border-radius:8px}
   #cards button{background:#3a6;border:0;color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer;text-align:left}
+  #inspector{position:fixed;right:8px;top:8px;width:240px;background:rgba(20,22,30,.92);color:#cde;
+  font:11px monospace;padding:10px;border-radius:8px;display:none;white-space:pre-wrap}
 </style></head>
 <body>
 <canvas id="c" width="960" height="640"></canvas>
 <div id="cards"></div>
+<div id="inspector"></div>
 <script type="module" src="src/main.js"></script>
 </body></html>

@@ -8,6 +8,7 @@ import { simTick } from './sim/steering.js';
 import { makeWorldFacts } from './sim/knowledge.js';
 import { Fields, randomWalkableNear } from './sim/flowfield.js';
 import { initBoards } from './ui/boards.js';
+import { initInspector, updateInspector } from './ui/inspector.js';
 import { drawHud } from './ui/hud.js';
 import { tickSchedule } from './data/schedule.js';
 import { initQueues } from './sim/queue.js';
@@ -34,6 +35,7 @@ export function closeDoor(world, idx) {
 
 window.addEventListener('keydown', e => { if (e.key === 'd') world.debug = !world.debug; });
 initBoards(canvas, world);
+initInspector(canvas, world);
 
 const g0 = world.fields.gridFor(0);
 for (let i = 0; i < T.agentCount; i++) {
@@ -51,6 +53,7 @@ function frame(now) {
   draw(ctx, world);
   if (world.debug) drawDebug(ctx, world);
   drawHud(ctx, world);
+  updateInspector(world);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
