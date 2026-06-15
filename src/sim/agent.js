@@ -35,7 +35,7 @@ export function makeAgent(world, id) {
     sociability: Math.random(), stubborn: Math.random(),
     talkCooldownUntil: 0, talkWith: -1, talkEndAt: 0,
     jamReactAt: 0, poiCooldown: {}, browseUntil: 0,
-    visitedCount: 0, satThreshold: 3 + (Math.random() * 5 | 0),
+    visitedCount: 0, satThreshold: 6 + (Math.random() * 8 | 0),
     beliefs: makeBeliefs(world, p.mapKnown),
   };
 }
