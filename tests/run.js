@@ -94,6 +94,26 @@ test('randomWalkableNear: всегда проходимая клетка', () =>
   }
 });
 
+import { bystanderChance, pickTopic, applyTopic } from '../src/sim/dialogue.js';
+
+test('dialogue: шанс зеваки падает с расстоянием до нуля', () => {
+  assert.ok(Math.abs(bystanderChance(0) - 0.1) < 1e-9);
+  assert.ok(bystanderChance(1.5) > 0 && bystanderChance(1.5) < 0.1);
+  assert.equal(bystanderChance(3), 0);
+  assert.equal(bystanderChance(5), 0);
+});
+
+test('dialogue: тема из объединения знаний, applyTopic учит', () => {
+  const mk = () => ({ beliefs: { knownPois: new Set(), jamMarks: [], events: { concert: { time: 1, place: 'stage', status: 'on', learnedAt: 5 } } }, doorMask: 0 });
+  const a = mk(), b = mk();
+  a.beliefs.knownPois.add('food');
+  const t = pickTopic(a, b, { map: { pois: { food: {} } } });
+  assert.ok(t, 'тема нашлась');
+  applyTopic(b, t, 10);
+  if (t.kind === 'poi') assert.ok(b.beliefs.knownPois.has('food'));
+  if (t.kind === 'event') assert.ok(b.beliefs.events.concert.learnedAt >= 5);
+});
+
 let fail = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log('ok -', name); }

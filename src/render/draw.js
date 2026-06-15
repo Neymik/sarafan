@@ -41,6 +41,7 @@ function drawAgents(ctx, world) {
     }
     if (a.activity === 'lost') { ctx.fillStyle = '#ff0'; ctx.font = '12px monospace'; ctx.fillText('?!', a.x * S + 4, a.y * S - 4); }
     if (a.activity === 'phone') { ctx.fillStyle = '#0cf'; ctx.fillRect(a.x * S - 1, a.y * S - 6, 3, 4); }
+    if (a.activity === 'talk') { ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.fillText('💬', a.x * S - 4, a.y * S - 6); }
   }
 }
 function drawFlashes(ctx, world) {

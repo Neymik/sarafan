@@ -39,6 +39,11 @@ export const T = {
   panicForgetChance: 0.05,    // за think-тик при stress>80
   jamReactCooldown: 10,
   leaveWeight: 0.9,
+  // диалоги
+  talkRadius: 1.2, talkChance: 0.15,   // в сек при sociability 1×1
+  talkMin: 4, talkMax: 7,
+  talkCooldown: 20,
+  talkTransfer: 0.9, bystanderBase: 0.1, bystanderRadius: 3,
 };
 export function speedFactor(n) { return Math.max(0.15, 1 - Math.max(0, n - T.comfortN) * 0.09); }
 export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }
