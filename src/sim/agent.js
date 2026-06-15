@@ -75,6 +75,9 @@ function startExplore(a, world) {
 }
 
 function arrive(a, world) { // дошёл до goalPoi (несервисного)
+  // успел на идущий концерт — насмотрелся, больше не рвётся обратно
+  const belC = a.beliefs.events.concert;
+  if (a.goalPoi === belC.place && belC.status === 'started') a.wantsConcert = false;
   (a.visitedPois ??= new Set()).add(a.goalPoi);
   a.visitedCount++;
   a.poiCooldown[a.goalPoi] = world.t + T.poiCooldownTime;

@@ -37,6 +37,13 @@ export function eyesUpdate(a, world) {
       }
     }
   });
+  // вижу место события своими глазами — узнаю его настоящий статус
+  const f = world.facts.concert, bel = B.events.concert;
+  if (f.status !== bel.status || f.time !== bel.time) {
+    const p = world.map.pois[f.place];
+    if (p && (p.x - a.x) ** 2 + (p.y - a.y) ** 2 < T.sightRadius ** 2)
+      B.events.concert = { ...f, learnedAt: world.t };
+  }
   if (B.jamMarks.length) B.jamMarks = B.jamMarks.filter(j => world.t - j.learnedAt < T.jamMarkTtl);
 }
 

@@ -23,6 +23,9 @@ export const SCHEDULE = [
   { at: h(14, 0), name: 'Концерт начался', fire(world) {
       world.facts.concert = { ...world.facts.concert, status: 'started', changedAt: world.t };
   }},
+  { at: h(14, 20), name: 'Концерт закончился', fire(world) {
+      world.facts.concert = { ...world.facts.concert, status: 'over', changedAt: world.t };
+  }},
 ];
 
 export function tickSchedule(world) {
