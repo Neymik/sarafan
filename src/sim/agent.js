@@ -27,7 +27,8 @@ export function makeAgent(world, id) {
     wantsConcert: Math.random() < 0.7,
     stress: 0, fatigue: 0, boredom: 0, phoneItch: Math.random() * 30,
     activity: 'wander', target: null,
-    goalPoi: null, smartUntil: -99, doorMask: 0, talkWalk: false, despawn: false,
+    goalPoi: null, smartUntil: -99, obstMask: 0, talkWalk: false, despawn: false,
+    kind: 'visitor', poiPromo: {}, searching: false, dragged: false, friendId: null, superfan: false,
     deceivedUntil: -99, lostSince: 0, phoneDoneAt: 0, blockedTime: 0,
     nextThink: Math.random() * T.utilityTickEvery,
     neighbors: [], density: 0, contact: false,
@@ -41,7 +42,7 @@ export function makeAgent(world, id) {
 
 function nearPoi(a, world, key) {
   const p = world.map.pois[key];
-  return p ? (p.x - a.x) ** 2 + (p.y - a.y) ** 2 < 16 : false;
+  return p ? (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2 < 16 : false;
 }
 
 function weightedPickPoi(a, world) {
@@ -49,8 +50,10 @@ function weightedPickPoi(a, world) {
   for (const k of a.beliefs.knownPois) {
     const p = world.map.pois[k];
     if (!p || p.exit || p.weight <= 0) continue;
+    if (p.staff) continue;
     if ((a.poiCooldown[k] ?? 0) > world.t) continue;
-    entries.push([k, p.weight * (a.visitedPois?.has(k) ? 0.3 : 1)]);
+    const promo = (a.poiPromo[k] ?? 0) > world.t ? T.promoFactor : 1;
+    entries.push([k, p.weight * promo * (a.visitedPois?.has(k) ? 0.3 : 1)]);
   }
   if (!entries.length) return null;
   let sum = 0; for (const [, w] of entries) sum += w;
@@ -63,7 +66,7 @@ function nearestExit(a, world) {
   let best = null, bd = Infinity;
   for (const [k, p] of Object.entries(world.map.pois)) {
     if (!p.exit) continue;
-    const d = (p.x - a.x) ** 2 + (p.y - a.y) ** 2;
+    const d = (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2;
     if (d < bd) { bd = d; best = k; }
   }
   return best;
@@ -88,8 +91,30 @@ function arrive(a, world) { // дошёл до goalPoi (несервисного
 }
 
 export function think(a, world) {
+  if (a.kind !== 'visitor') return;          // спецагентов ведут special/logistics
+  if (a.searching) return;                    // ищет друга — ведёт special.js
+  if (a.activity === 'follow') {              // хвост стримера
+    const s = world.agents.find(x => x.id === a.followTarget);
+    if (!s || s.despawn) { a.activity = 'wander'; a.target = null; }
+    return;
+  }
   if (a.activity === 'talk' || a.activity === 'queue' || a.activity === 'mobbing') return; // ведут dialogue.js / queue.js
   if (a.activity === 'lost') { thinkLost(a, world); return; }
+
+  if (a.superfan) {
+    const bel = a.beliefs.events.concert;
+    const soon = bel.status === 'started' || (bel.status === 'on' && gameClock(world.t) >= bel.time - 1800);
+    if (soon) {
+      if (nearPoi(a, world, 'stage')) {
+        a.activity = 'browse'; a.browseUntil = world.t + 9999; a.goalPoi = null;
+        if (bel.status === 'over' || world.facts.concert.status === 'over') { a.superfan = false; a.browseUntil = 0; }
+        return;
+      }
+      if (a.activity !== 'queue' && a.activity !== 'mobbing') { a.activity = 'goto'; a.goalPoi = 'stage'; a.target = null; return; }
+    } else if (!a.visitedPois?.has('autograph') && a.activity !== 'queue' && a.activity !== 'mobbing' && a.goalPoi !== 'autograph') {
+      a.activity = 'goto'; a.goalPoi = 'autograph'; a.target = null; return;
+    }
+  }
 
   // обман ожиданий (как v1, по близости к POI)
   const f = world.facts.concert, belC = a.beliefs.events.concert;
@@ -205,7 +230,7 @@ function thinkLost(a, world) {
     if ((brd.x - a.x) ** 2 + (brd.y - a.y) ** 2 < T.sightRadius ** 2) {
       const lesson = boardLocalLesson(world, brd);
       for (const k of lesson.pois) a.beliefs.knownPois.add(k);
-      a.doorMask |= lesson.doorBits;
+      a.obstMask |= lesson.obstBits;
       if (!a.lostGoal || a.beliefs.knownPois.has(a.lostGoal)) { a.activity = 'wander'; return; }
     }
   }
@@ -219,7 +244,7 @@ function thinkLost(a, world) {
   // 3) скачал план выставки (в толпе медленнее)
   if (world.t >= a.phoneDoneAt) {
     for (const k of Object.keys(world.map.pois)) a.beliefs.knownPois.add(k);
-    a.doorMask = world.doorsClosed ?? 0;
+    a.obstMask = world.obstMask ?? 0;
     a.activity = 'wander'; return;
   }
   // 4) таймаут

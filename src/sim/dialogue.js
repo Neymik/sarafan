@@ -5,29 +5,30 @@ export function bystanderChance(d) {
   return Math.max(0, T.bystanderBase * (1 - d / T.bystanderRadius));
 }
 
-// тема: случайный факт из знаний обоих. kinds: poi | jam | event | door
+// тема: случайный факт из знаний обоих. kinds: poi | jam | event | obst
 export function pickTopic(a, b, world) {
   const topics = [];
   for (const src of [a, b]) {
     for (const k of src.beliefs.knownPois) topics.push({ kind: 'poi', poi: k });
     for (const j of src.beliefs.jamMarks) topics.push({ kind: 'jam', jam: { ...j } });
     topics.push({ kind: 'event', ev: { ...src.beliefs.events.concert } });
-    if (src.doorMask) topics.push({ kind: 'door', mask: src.doorMask });
+    const ob = src.obstMask & (world.obstMask ?? ~0);
+    if (ob) topics.push({ kind: 'obst', mask: ob });
   }
   if (!topics.length) return null;
   return topics[(Math.random() * topics.length) | 0];
 }
 
-export function applyTopic(agent, topic, t) {
+export function applyTopic(agent, topic, t, noMutation = false) {
   switch (topic.kind) {
     case 'poi': agent.beliefs.knownPois.add(topic.poi); break;
     case 'jam': addJamMark(agent.beliefs, { ...topic.jam }); break;
-    case 'door': agent.doorMask |= topic.mask; break;
+    case 'obst': agent.obstMask |= topic.mask; break;
     case 'event': {
       const mine = agent.beliefs.events.concert;
       if (topic.ev.learnedAt > mine.learnedAt) {
         agent.beliefs.events.concert = { ...topic.ev };
-        if (Math.random() < T.rumorMutation) {
+        if (!noMutation && Math.random() < T.rumorMutation) {
           const m = agent.beliefs.events.concert;
           if (Math.random() < 0.5) m.time += 600; else m.status = 'cancelled';
           m.learnedAt -= 1; // слух «старше» правды — правда побеждает при встрече
@@ -40,6 +41,7 @@ export function applyTopic(agent, topic, t) {
 
 // ЗАМЕЧАНИЕ: используем простую и корректную версию
 function canTalk(a, world) {
+  if (a.kind !== 'visitor') return false;
   if (a.perception <= 0 || a.talkCooldownUntil > world.t) return false;
   return ['wander', 'browse', 'rest'].includes(a.activity);
 }
@@ -82,16 +84,18 @@ function finishTalk(world, a, b) {
   // Проверяем: если b.activity !== 'talk', то он уже освобождён — передаём undefined.
   const bActive = b && b.activity === 'talk' && b.talkWith === a.id ? b : undefined;
   const peers = bActive ? [a, bActive] : [a];
+  const mx = bActive ? (a.x + bActive.x) / 2 : a.x;
+  const my = bActive ? (a.y + bActive.y) / 2 : a.y;
   if (bActive) {
     const topic = pickTopic(a, bActive, world);
+    const nearVol = (world.volunteers ?? []).some(v => (v.x - mx) ** 2 + (v.y - my) ** 2 < T.volunteerRadius ** 2);
     if (topic) {
-      for (const x of peers) if (Math.random() < T.talkTransfer) applyTopic(x, topic, world.t);
+      for (const x of peers) if (Math.random() < T.talkTransfer) applyTopic(x, topic, world.t, nearVol);
       // зеваки
-      const mx = (a.x + bActive.x) / 2, my = (a.y + bActive.y) / 2;
       world.flashes.push({ x: mx, y: my, t: world.t, r: T.bystanderRadius }); // мини-волна знания
       for (const o of world.hash.queryCircle(mx, my, T.bystanderRadius)) {
         if (o === a || o === bActive || !o.beliefs || o.perception <= 0) continue;
-        if (Math.random() < bystanderChance(Math.hypot(o.x - mx, o.y - my))) applyTopic(o, topic, world.t);
+        if (Math.random() < bystanderChance(Math.hypot(o.x - mx, o.y - my))) applyTopic(o, topic, world.t, nearVol);
       }
     }
   }

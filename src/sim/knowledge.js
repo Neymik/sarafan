@@ -2,10 +2,7 @@ import { T } from '../data/tuning.js';
 import { isWalkable } from './flowfield.js';
 
 export function makeWorldFacts() {
-  return {
-    concert: { time: 14 * 3600, place: 'stage', status: 'on', changedAt: 0 },
-    doorW: { open: true, changedAt: 0 },
-  };
+  return { concert: { time: 14.5 * 3600, place: 'stage', status: 'on', changedAt: 0 } };
 }
 
 export function makeBeliefs(world, mapKnown) {
@@ -16,32 +13,31 @@ export function makeBeliefs(world, mapKnown) {
   }
   return {
     knownPois: known, jamMarks: [],
-    events: { concert: { time: 14 * 3600, place: 'stage', status: 'on', learnedAt: 0 } },
+    events: { concert: { time: 14.5 * 3600, place: 'stage', status: 'on', learnedAt: 0 } },
   };
 }
 
-// глаза: открытие POI в радиусе зрения, двери, протухание jamMarks
+// глаза: открытие POI в радиусе зрения, слоты-препятствия, протухание jamMarks
 export function eyesUpdate(a, world) {
   const B = a.beliefs;
   for (const [k, p] of Object.entries(world.map.pois)) {
-    if (!B.knownPois.has(k) && (p.x - a.x) ** 2 + (p.y - a.y) ** 2 < T.sightRadius ** 2)
+    if (!B.knownPois.has(k) && (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2 < T.sightRadius ** 2)
       B.knownPois.add(k);
   }
-  world.map.doors.forEach((d, i) => {
+  (world.fields?.slots ?? []).forEach((s, i) => {
     const bit = 1 << i;
-    if ((world.doorsClosed & bit) && !(a.doorMask & bit)) {
-      const cx = d.x + d.w / 2, cy = d.y + d.h / 2;
-      if ((cx - a.x) ** 2 + (cy - a.y) ** 2 < T.sightRadius ** 2) {
-        a.doorMask |= bit;
-        a.stress = Math.min(100, a.stress + 10); // упс, закрыто
-      }
+    if (!s || (a.obstMask & bit)) return;
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    if ((cx - a.x) ** 2 + (cy - a.y) ** 2 < T.sightRadius ** 2) {
+      a.obstMask |= bit;
+      a.stress = Math.min(100, a.stress + 10); // упс, перекрыто
     }
   });
   // вижу место события своими глазами — узнаю его настоящий статус
   const f = world.facts.concert, bel = B.events.concert;
   if (f.status !== bel.status || f.time !== bel.time) {
     const p = world.map.pois[f.place];
-    if (p && (p.x - a.x) ** 2 + (p.y - a.y) ** 2 < T.sightRadius ** 2)
+    if (p && (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2 < T.sightRadius ** 2)
       B.events.concert = { ...f, learnedAt: world.t };
   }
   if (B.jamMarks.length) B.jamMarks = B.jamMarks.filter(j => world.t - j.learnedAt < T.jamMarkTtl);
@@ -86,23 +82,23 @@ export function boardBroadcast(world, board, applyFn) {
     if (a.perception > 0 && a.beliefs) applyFn(a, world);
 }
 
-// чему табло учит про СВОЙ участок: POI, двери и текущие заторы в boardLocalRadius
+// чему табло учит про СВОЙ участок: POI, препятствия и текущие заторы в boardLocalRadius
 export function boardLocalLesson(world, board) {
   const R2 = T.boardLocalRadius ** 2;
   const pois = Object.entries(world.map.pois)
-    .filter(([k, p]) => (p.x - board.x) ** 2 + (p.y - board.y) ** 2 < R2).map(([k]) => k);
-  let doorBits = 0;
-  world.map.doors.forEach((d, i) => {
-    if ((d.x + d.w / 2 - board.x) ** 2 + (d.y + d.h / 2 - board.y) ** 2 < R2) doorBits |= 1 << i;
+    .filter(([k, p]) => (p.fx - board.x) ** 2 + (p.fy - board.y) ** 2 < R2).map(([k]) => k);
+  let obstBits = 0;
+  (world.fields?.slots ?? []).forEach((s, i) => {
+    if (s && (s.x + s.w / 2 - board.x) ** 2 + (s.y + s.h / 2 - board.y) ** 2 < R2) obstBits |= 1 << i;
   });
   // заторы: пробы плотности у локальных POI
   const jams = [];
   for (const k of pois) {
     const p = world.map.pois[k];
-    if (world.hash.queryCircle(p.x, p.y, 2.5).length > T.jamThreshold)
-      jams.push({ x: p.x, y: p.y, r: 3, learnedAt: world.t });
+    if (world.hash.queryCircle(p.fx, p.fy, 2.5).length > T.jamThreshold)
+      jams.push({ x: p.fx, y: p.fy, r: 3, learnedAt: world.t });
   }
-  return { pois, doorBits: doorBits & (world.doorsClosed ?? 0), jams };
+  return { pois, obstBits, jams };
 }
 
 export function knowledgeLag(a, world) {

@@ -114,28 +114,29 @@ test('dialogue: шанс зеваки падает с расстоянием д�
 });
 
 test('dialogue: тема из объединения знаний, applyTopic учит', () => {
-  const mk = () => ({ beliefs: { knownPois: new Set(), jamMarks: [], events: { concert: { time: 1, place: 'stage', status: 'on', learnedAt: 5 } } }, doorMask: 0 });
+  const mk = () => ({ kind: 'visitor', beliefs: { knownPois: new Set(), jamMarks: [], events: { concert: { time: 1, place: 'stage', status: 'on', learnedAt: 5 } } }, obstMask: 0 });
   const a = mk(), b = mk();
   a.beliefs.knownPois.add('food');
-  const t = pickTopic(a, b, { map: { pois: { food: {} } } });
+  const t = pickTopic(a, b, { map: { pois: { food: {} } }, obstMask: 0 });
   assert.ok(t, 'тема нашлась');
   applyTopic(b, t, 10);
   if (t.kind === 'poi') assert.ok(b.beliefs.knownPois.has('food'));
   if (t.kind === 'event') assert.ok(b.beliefs.events.concert.learnedAt >= 5);
 });
 
-test('queue: слоты вдоль queueDir с шагом', () => {
-  const poi = { x: 10, y: 20, service: { rate: 4, queueDir: [1, 0] } };
+test('queue: слоты вдоль грани от front-точки', () => {
+  const poi = { x: 9, y: 19, w: 2, h: 2, face: 'E', service: { rate: 4 } };
+  poi.fx = 11.7; poi.fy = 20;            // face E → front справа, очередь вдоль [0,1]
   const p0 = queueSlotPos(poi, 0), p2 = queueSlotPos(poi, 2);
-  assert.ok(Math.abs(p0.x - 10.6) < 1e-9 && Math.abs(p2.x - 11.8) < 1e-9);
-  assert.equal(p0.y, 20);
+  assert.ok(Math.abs(p0.y - 20.6) < 1e-9 && Math.abs(p2.y - 21.8) < 1e-9);
+  assert.equal(p0.x, 11.7);
 });
 
 test('queue: обслуживание двигает очередь, обслуженный доволен', () => {
-  const poi = { x: 10, y: 20, service: { rate: 0.0001, queueDir: [1, 0] } }; // мгновенное
+  const poi = { x: 9, y: 19, w: 2, h: 2, face: 'E', fx: 10, fy: 20, service: { rate: 0.0001 } }; // мгновенное
   const world = { t: 100, map: { pois: { q: poi } }, agents: [], hash: { queryCircle: () => [] } };
   initQueues(world);
-  const mk = id => ({ id, x: 10 + id, y: 20, stress: 50, boredom: 50, visitedCount: 0,
+  const mk = id => ({ id, kind: 'visitor', x: 10 + id, y: 20, stress: 50, boredom: 50, visitedCount: 0,
     activity: 'queue', goalPoi: 'q', target: null, poiCooldown: {}, beliefs: { knownPois: new Set() } });
   const a = mk(1), b = mk(2);
   world.agents.push(a, b);

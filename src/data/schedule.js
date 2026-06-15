@@ -16,9 +16,8 @@ export const SCHEDULE = [
   { at: h(13, 10), name: 'Поезд: +80 человек', fire(world) {
       for (let i = 0; i < 80; i++) spawnAt(world, 'exitMain');
   }},
-  { at: h(13, 40), name: 'Западный проём сцены закрыт', fire(world) {
-      world.closeDoor(0);
-      world.facts.doorW = { open: false, changedAt: world.t };
+  { at: h(13, 40), name: 'Западный проём — изменение', fire(world) {
+      // door mechanism removed in v3 (Task 2)
   }},
   { at: h(14, 0), name: 'Концерт начался', fire(world) {
       world.facts.concert = { ...world.facts.concert, status: 'started', changedAt: world.t };

@@ -8,6 +8,7 @@ export function simTick(world, dt) {
   const { agents, hash } = world;
   hash.rebuild(agents);
   for (const a of agents) {
+    if (a.dragged) { a.vx = a.vy = 0; continue; }
     a.neighbors = hash.queryCircle(a.x, a.y, T.densityRadius);
     a.density = a.neighbors.length - 1;
     a.contact = false;
@@ -18,11 +19,12 @@ export function simTick(world, dt) {
   }
   dialogueTick(world, dt);
   queueTick(world, dt);
-  for (const a of agents) stepAgent(a, world, dt);
+  for (const a of agents) if (!a.dragged) stepAgent(a, world, dt);
   resolveCollisions(world);
   const { w, h } = world.map;
   const obs = world.obstacles ?? world.map.blocks;
   for (const a of agents) {
+    if (a.dragged) continue;
     for (const r of obs) pushOutOfRect(a, r);
     a.x = Math.max(a.radius + 1, Math.min(w - 1 - a.radius, a.x));
     a.y = Math.max(a.radius + 1, Math.min(h - 1 - a.radius, a.y));
@@ -31,10 +33,11 @@ export function simTick(world, dt) {
 
   if (world.fields) {
     world.smartTimer = (world.smartTimer ?? 0) - dt;
-    if (world.smartTimer <= 0) { world.smartTimer = T.smartRecomputeEvery; world.fields.recomputeSmart(agents, world.doorsClosed ?? 0); }
+    if (world.smartTimer <= 0) { world.smartTimer = T.smartRecomputeEvery; world.fields.recomputeSmart(agents, world.obstMask ?? 0); }
   }
 
   if (world.agents.some(a => a.despawn)) {
+    if (world.score) world.score.angry += world.agents.filter(a => a.despawn && a.stress > 70).length;
     if (world.selected && world.selected.despawn) world.selected = null;
     world.agents = world.agents.filter(a => !a.despawn);
   }
@@ -42,6 +45,7 @@ export function simTick(world, dt) {
 
 function updateStress(world, dt) {
   for (const a of world.agents) {
+    if (a.dragged) continue;
     let ds = -T.stressDecay;
     ds += T.stressFromDensity * Math.max(0, a.density - T.comfortN);
     if (a.contact) ds += T.stressFromContact;
@@ -50,6 +54,8 @@ function updateStress(world, dt) {
     if (a.activity === 'goto' && moving < 0.2 * a.maxSpeed) a.blockedTime += dt;
     else a.blockedTime = 0;
     if (a.blockedTime > T.blockedStressAfter) ds += T.blockedStressRate;
+    if (world.litter) for (const l of world.litter)
+      if ((l.x - a.x) ** 2 + (l.y - a.y) ** 2 < 0.25) { ds += T.litterStress; break; }
     a.stress = Math.max(0, Math.min(100, a.stress + ds * dt));
   }
 }
@@ -59,7 +65,7 @@ function stepAgent(a, world, dt) {
   let sx = 0, sy = 0, hasGoal = false;
   if (a.goalPoi && world.fields) {
     const mode = (a.smartUntil > world.t) ? 'smart' : 'clear';
-    const mask = (a.doorMask ?? 0) & (world.doorsClosed ?? 0);
+    const mask = (a.obstMask ?? 0) & (world.obstMask ?? 0);
     const dir = world.fields.dir(mode, mask, a.goalPoi, a.x, a.y);
     if (dir) { sx = dir.x; sy = dir.y; hasGoal = true; }
   }
@@ -75,6 +81,8 @@ function stepAgent(a, world, dt) {
     if (a.activity === 'browse') mods = 0.4;
     if (a.activity === 'talk') mods = a.talkWalk ? 0.5 : 0;
     if (a.activity === 'queue') mods = 0.5;
+    if (a.activity === 'follow') mods = 0.9;
+    if (a.activity === 'pose' || a.activity === 'clean') mods = 0;
     const speed = a.maxSpeed * speedFactor(a.density) * mods;
     dx = sx * speed; dy = sy * speed;
   }
@@ -98,6 +106,17 @@ function stepAgent(a, world, dt) {
       dx += ox / d * f; dy += oy / d * f;
     }
   }
+  // отталкивание от стен: мягкая сила до контакта
+  for (const r of (world.obstacles ?? world.map.blocks)) {
+    const px = Math.max(r.x, Math.min(r.x + r.w, a.x));
+    const py = Math.max(r.y, Math.min(r.y + r.h, a.y));
+    const ox = a.x - px, oy = a.y - py, d = Math.hypot(ox, oy);
+    const reach = a.radius + 0.4;
+    if (d > 1e-4 && d < reach) {
+      const f = T.wallRepel * (1 - d / reach);
+      dx += ox / d * f; dy += oy / d * f;
+    }
+  }
   // уступание: TTC < 1с и чужой приоритет выше — шаг вбок + сброс скорости
   if (a.perception > 0) {
     for (const b of a.neighbors) {
@@ -111,8 +130,8 @@ function stepAgent(a, world, dt) {
       const ttc = d / (closing / d);
       if (ttc < 1) {
         // floor скорости в приоритете: покоящийся тяжёлый всё равно «главнее» лёгкого
-        const myP = a.mass * Math.max(Math.hypot(a.vx, a.vy), 0.5) * (a.activity === 'goto' ? 1.5 : 1);
-        const theirP = b.mass * Math.max(Math.hypot(b.vx, b.vy), 0.5) * (b.activity === 'goto' ? 1.5 : 1);
+        const myP = a.mass * Math.max(Math.hypot(a.vx, a.vy), 0.5) * (a.activity === 'goto' ? 1.5 : 1) * (a.kind === 'carrier' ? T.carrierPriority : 1);
+        const theirP = b.mass * Math.max(Math.hypot(b.vx, b.vy), 0.5) * (b.activity === 'goto' ? 1.5 : 1) * (b.kind === 'carrier' ? T.carrierPriority : 1);
         if (theirP > myP * (2 - a.politeness)) {
           dx += -ry / d * 1.5;  // перпендикуляр от его курса
           dy +=  rx / d * 1.5;
@@ -130,8 +149,9 @@ function stepAgent(a, world, dt) {
 export function resolveCollisions(world) {
   for (let it = 0; it < 2; it++) {
     for (const a of world.agents) {
+      if (a.dragged) continue;
       for (const b of a.neighbors) {
-        if (b.id <= a.id) continue;
+        if (b.id <= a.id || a.dragged || b.dragged) continue;
         const dx = b.x - a.x, dy = b.y - a.y;
         const d = Math.hypot(dx, dy), min = a.radius + b.radius;
         if (d > 1e-4 && d < min) {
