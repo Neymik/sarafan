@@ -1,9 +1,11 @@
 import { T } from './data/tuning.js';
+import { MAP } from './data/map.js';
+import { draw } from './render/draw.js';
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
-export const world = { t: 0, agents: [], flashes: [], debug: false };
+export const world = { t: 0, map: MAP, agents: [], flashes: [], debug: false };
 
 window.addEventListener('keydown', e => { if (e.key === 'd') world.debug = !world.debug; });
 
@@ -16,9 +18,5 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 function simTick(world, dt) {} // заменится импортом в Task 4
-function render() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#888'; ctx.font = '14px monospace';
-  ctx.fillText('t=' + world.t.toFixed(1), 10, 20);
-}
+function render() { draw(ctx, world); }
 requestAnimationFrame(frame);
