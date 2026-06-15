@@ -11,9 +11,12 @@ export function drawHud(ctx, world) {
   ctx.fillRect(100, 12, 2 * avg, 14);
   ctx.fillStyle = '#fff'; ctx.font = '11px monospace';
   ctx.fillText('стресс ' + avg.toFixed(0), 105, 23);
+  // счётчик населения
+  ctx.fillStyle = '#9ab'; ctx.font = '12px monospace';
+  ctx.fillText('чел: ' + world.agents.length, 320, 23);
   // баннер события
   if (world.banner && world.t - world.banner.t < 4) {
     ctx.font = 'bold 16px monospace'; ctx.fillStyle = '#ffd34d';
-    ctx.fillText(world.banner.text, 340, 26);
+    ctx.fillText(world.banner.text, 400, 26);
   }
 }

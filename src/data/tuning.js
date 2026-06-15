@@ -52,6 +52,9 @@ export const T = {
   mobRateFactor: 0.4,
   injusticeStress: 15,
   serveSatisfaction: 30,     // сброс стресса обслуженному
+  // население
+  arrivalEvery: 1.4,   // реальных сек между приходами (база)
+  maxAgents: 700,
 };
 export function speedFactor(n) { return Math.max(0.15, 1 - Math.max(0, n - T.comfortN) * 0.09); }
 export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }

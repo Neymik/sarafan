@@ -1,7 +1,7 @@
 import { fmtClock } from './tuning.js';
+import { boardLocalLesson, addJamMark } from '../sim/knowledge.js';
 
-// Карточки контекстные: правда о концерте, правда о двери, «успокоить» (снизить срочность ложным переносом)
-export function messagesFor(world) {
+export function messagesFor(world, board) {
   const f = world.facts.concert;
   return [
     {
@@ -9,11 +9,16 @@ export function messagesFor(world) {
       apply(a, w) { a.beliefs.events.concert = { ...f, learnedAt: w.t }; },
     },
     {
-      label: 'Двери сцены: запад ' + (world.facts.doorW?.open === false ? 'ЗАКРЫТ' : 'открыт'),
-      apply(a, w) { a.doorMask |= (w.doorsClosed ?? 0); },
+      label: 'Карта участка: что рядом и где толпа',
+      apply(a, w) {
+        const lesson = boardLocalLesson(w, board);
+        for (const k of lesson.pois) a.beliefs.knownPois.add(k);
+        a.doorMask |= lesson.doorBits;
+        for (const j of lesson.jams) addJamMark(a.beliefs, { ...j });
+      },
     },
     {
-      label: 'ЛОЖЬ: «Концерт переносится на 30 мин»', // эксперимент с обманом (доверие — после джама)
+      label: 'ЛОЖЬ: «Концерт переносится на 30 мин»',
       apply(a, w) { a.beliefs.events.concert = { ...a.beliefs.events.concert, time: f.time + 1800, learnedAt: w.t }; },
     },
   ];

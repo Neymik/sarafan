@@ -12,7 +12,7 @@ export function initBoards(canvas, world) {
     if (!board) return;
     cardsEl.style.left = e.clientX + 'px'; cardsEl.style.top = e.clientY + 'px';
     cardsEl.style.display = 'flex';
-    for (const msg of messagesFor(world)) {
+    for (const msg of messagesFor(world, board)) {
       const btn = document.createElement('button');
       btn.textContent = msg.label;
       btn.onclick = () => { boardBroadcast(world, board, msg.apply); cardsEl.style.display = 'none'; };
