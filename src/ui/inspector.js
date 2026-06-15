@@ -4,6 +4,7 @@ import { knowledgeLag } from '../sim/knowledge.js';
 export function initInspector(canvas, world) {
   const el = document.getElementById('inspector');
   canvas.addEventListener('click', e => {
+    if (world.ui && world.ui.mode !== 'cursor') return;
     const r = canvas.getBoundingClientRect();
     const mx = (e.clientX - r.left) / T.pxPerMeter, my = (e.clientY - r.top) / T.pxPerMeter;
     // табло в приоритете
