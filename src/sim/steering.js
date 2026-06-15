@@ -70,7 +70,28 @@ function stepAgent(a, world, dt) {
       dx += ox / d * f; dy += oy / d * f;
     }
   }
-  // [Task 7: рефлекс уступания вставляется здесь]
+  // уступание: TTC < 1с и чужой приоритет выше — шаг вбок + сброс скорости
+  if (a.perception > 0) {
+    for (const b of a.neighbors) {
+      if (b === a) continue;
+      const rx = b.x - a.x, ry = b.y - a.y;
+      const rvx = b.vx - a.vx, rvy = b.vy - a.vy;
+      const closing = -(rx * rvx + ry * rvy);
+      if (closing <= 0) continue;
+      const d = Math.hypot(rx, ry);
+      const ttc = d / (closing / d);
+      if (ttc < 1) {
+        const myP = a.mass * Math.hypot(a.vx, a.vy) * (a.activity === 'goto' ? 1.5 : 1);
+        const theirP = b.mass * Math.hypot(b.vx, b.vy) * (b.activity === 'goto' ? 1.5 : 1);
+        if (theirP > myP * (2 - a.politeness)) {
+          dx += -ry / d * 1.5;  // перпендикуляр от его курса
+          dy +=  rx / d * 1.5;
+          dx *= 0.5; dy *= 0.5;
+          break;
+        }
+      }
+    }
+  }
   const k = Math.min(1, a.agility * turnFactor(a.density) * dt);
   a.vx += (dx - a.vx) * k; a.vy += (dy - a.vy) * k;
   a.x += a.vx * dt; a.y += a.vy * dt;
