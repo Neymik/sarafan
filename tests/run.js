@@ -166,7 +166,8 @@ test('волна открытия: ~200 за 10 сек, все в проходи
 });
 
 import { initLogistics, logisticsTick } from '../src/sim/logistics.js';
-import { specialTick, spawnSpecial } from '../src/sim/special.js';
+import { specialTick, spawnSpecial, pairTick, injectSpontaneousRumor } from '../src/sim/special.js';
+import { makeAgent } from '../src/sim/agent.js';
 
 test('special: спавнер создаёт kind с нужными правками', () => {
   const world = { t: 0, map: MAP, agents: [], hash: new SpatialHash(1),
@@ -220,6 +221,35 @@ test('логистика: stock<5 рождает грузчика, прибыт�
   logisticsTick(world);
   assert.ok(c.despawn, 'грузчик ушёл со смены');
   MAP.pois.merch1.stock = 15; // не загрязнять другие тесты
+});
+
+test('lostPair: разлука включает поиск, встреча лечит', () => {
+  const world = { t: 100, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, flashes: [] };
+  const a = makeAgent(world, 1), b = makeAgent(world, 2);
+  a.friendId = 2; b.friendId = 1;
+  a.x = 10; a.y = 35; b.x = 40; b.y = 35; a.stress = b.stress = 0;
+  world.agents.push(a, b);
+  pairTick(world);
+  assert.ok(a.searching && b.searching, 'оба ищут');
+  assert.ok(a.stress >= 20, 'стресс разлуки');
+  b.x = 11; b.y = 35;
+  pairTick(world);
+  assert.ok(!a.searching && !b.searching, 'воссоединились');
+  assert.ok(a.stress <= 10 && b.stress <= 10, 'отлегло');
+});
+
+test('слух: заражает одного с пометкой свежести', () => {
+  const world = { t: 50, map: MAP, agents: [], hash: new SpatialHash(1),
+    facts: makeWorldFacts(), fields: new Fields(MAP), obstMask: 0, flashes: [] };
+  for (let i = 0; i < 10; i++) { const a = makeAgent(world, i); a.sociability = 0.9; world.agents.push(a); }
+  injectSpontaneousRumor(world);
+  const infected = world.agents.filter(a => {
+    const c = a.beliefs.events.concert;
+    return c.status === 'cancelled' || c.time !== world.facts.concert.time;
+  });
+  assert.equal(infected.length, 1, 'ровно один зачинщик');
+  assert.equal(infected[0].beliefs.events.concert.learnedAt, world.t, 'слух свежее правды');
 });
 
 let fail = 0;

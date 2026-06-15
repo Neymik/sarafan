@@ -121,9 +121,116 @@ function starTick(world) {
   }
 }
 
-function pairSpawnTick() {}
-function pairTick() {}
-function janitorTick() {}
-function litterTick() {}
-function rumorTick() {}
-function volunteerTick() {}
+function pairSpawnTick(world) {
+  world.nextPair ??= h(13, 8);
+  if (world.t < world.nextPair) return;
+  world.nextPair = world.t + T.pairEveryGameMin * 60 / T.timeScale;
+  const key = ['exitMain', 'exitW', 'exitE'][(Math.random() * 3) | 0];
+  const a = spawnAt(world, key), b = spawnAt(world, key);
+  a.friendId = b.id; b.friendId = a.id;
+}
+
+export function pairTick(world) {
+  for (const a of world.agents) {
+    if (!a.friendId) continue;
+    const b = world.agents.find(x => x.id === a.friendId);
+    if (!b || b.despawn) { a.friendId = null; a.searching = false; continue; }
+    if (a.id > b.id) continue; // пара обрабатывается один раз
+    const d2 = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+    if (!a.searching && d2 > T.pairSepDist ** 2) {
+      for (const x of [a, b]) {
+        x.searching = true; x.goalPoi = null; x.target = null; x.activity = 'wander';
+        x.stress = Math.min(100, x.stress + 20);
+        x.searchRetargetAt = 0;
+      }
+    } else if (a.searching && d2 < T.pairReuniteDist ** 2) {
+      for (const x of [a, b]) { x.searching = false; x.stress = Math.min(x.stress, 10); x.target = null; }
+      world.flashes.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, t: world.t, r: 2, kind: 'heart' });
+    } else if (a.searching) {
+      for (const x of [a, b]) {
+        if (world.t >= (x.searchRetargetAt ?? 0)) {
+          x.searchRetargetAt = world.t + 3;
+          x.target = randomWalkableNear(world.fields.gridFor(0), x.x, x.y, 10);
+        }
+      }
+    }
+  }
+}
+
+function janitorTick(world, dt) {
+  for (const j of world.agents) {
+    if (j.kind !== 'janitor') continue;
+    if (j.cleanUntil > world.t) continue;        // моет
+    if (j.cleanTarget) {                          // домыл — убрать мусор
+      const i = (world.litter ?? []).indexOf(j.cleanTarget);
+      if (i >= 0) world.litter.splice(i, 1);
+      j.cleanTarget = null;
+    }
+    let best = null, bd = 25;
+    for (const l of world.litter ?? []) {
+      const d2 = (l.x - j.x) ** 2 + (l.y - j.y) ** 2;
+      if (d2 < bd) { bd = d2; best = l; }
+    }
+    if (best) {
+      if (bd < 0.36) { j.cleanTarget = best; j.cleanUntil = world.t + 2; j.activity = 'clean'; j.target = null; }
+      else { j.activity = 'wander'; j.target = { x: best.x, y: best.y }; }
+    } else if (!j.target) {
+      j.activity = 'wander';
+      j.target = randomWalkableNear(world.fields.gridFor(0), j.x, j.y, 8);
+    }
+  }
+}
+
+function litterTick(world, dt) {
+  world.litter ??= [];
+  world.litterTimer = (world.litterTimer ?? 0) - dt;
+  if (world.litterTimer > 0 || !world.fields.density) return;
+  world.litterTimer = T.litterEvery;
+  const d = world.fields.density, g = world.fields.gridFor(0);
+  for (let i = 0; i < d.length; i++) {
+    if (world.litter.length >= T.litterMax) break;
+    if (d[i] >= T.jamN && Math.random() < T.litterChance)
+      world.litter.push({ x: i % g.W + Math.random(), y: ((i / g.W) | 0) + Math.random() });
+  }
+}
+
+function rumorTick(world) {
+  world.nextRumor ??= T.rumorEvery;
+  if (world.t < world.nextRumor) return;
+  world.nextRumor = world.t + T.rumorEvery + (Math.random() * 2 - 1) * T.rumorJitter;
+  injectSpontaneousRumor(world);
+}
+
+export function injectSpontaneousRumor(world) {
+  const cands = world.agents.filter(a => a.kind === 'visitor' && a.sociability > 0.7 && a.perception > 0);
+  if (!cands.length) return;
+  const a = cands[(Math.random() * cands.length) | 0];
+  const f = world.facts.concert;
+  a.beliefs.events.concert = Math.random() < 0.5
+    ? { ...f, status: 'cancelled', learnedAt: world.t }
+    : { ...f, time: f.time + 1800, learnedAt: world.t };
+  let nearest = '', bd = Infinity;
+  for (const [k, p] of Object.entries(world.map.pois)) {
+    const d2 = (p.fx - a.x) ** 2 + (p.fy - a.y) ** 2;
+    if (d2 < bd) { bd = d2; nearest = p.label; }
+  }
+  world.banner = { text: `🔥 Слух пошёл (район: ${nearest})`, t: world.t };
+}
+
+function volunteerTick(world) {
+  for (const v of world.volunteers ?? []) {
+    for (const a of world.hash.queryCircle(v.x, v.y, T.volunteerRadius)) {
+      if (!a.beliefs || a.kind !== 'visitor') continue;
+      if (a.activity === 'lost') {
+        for (const k of Object.keys(world.map.pois)) a.beliefs.knownPois.add(k);
+        a.obstMask = world.obstMask ?? 0;
+        a.activity = 'wander'; a.stress = Math.max(0, a.stress - 15);
+      } else if ((a.volTaughtAt ?? -99) + T.volunteerTeachEvery < world.t) {
+        a.volTaughtAt = world.t;
+        const lesson = boardLocalLesson(world, v);   // v = {x, y} — годится как «табло»
+        for (const k of lesson.pois) a.beliefs.knownPois.add(k);
+        a.obstMask |= lesson.obstBits;
+      }
+    }
+  }
+}
