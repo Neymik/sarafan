@@ -57,10 +57,10 @@ function inZone(a, world, zoneId) {
 
 export function think(a, world) {
   if (a.activity === 'lost') {
-    // 1) вижу табло — мгновенно узнаю карту
+    // 1) вижу табло — мгновенно узнаю карту (и актуальную проходимость)
     for (const brd of world.map.boards) {
       if ((brd.x - a.x) ** 2 + (brd.y - a.y) ** 2 < T.sightRadius ** 2) {
-        for (let i = 0; i < world.map.edges.length; i++) a.beliefs.edgeKnown[i] = 1;
+        for (let i = 0; i < world.map.edges.length; i++) { a.beliefs.edgeKnown[i] = 1; a.beliefs.edgePassable[i] = world.edgePassable[i]; }
         a.activity = 'wander'; return;
       }
     }
@@ -89,7 +89,8 @@ export function think(a, world) {
     a.beliefs.events.concert = { ...f, learnedAt: world.t }; // узнал глазами
     a.deceivedUntil = world.t + 15;
     a.stress = Math.min(100, a.stress + 25);
-    a.activity = 'wander'; a.path = [];
+    a.activity = 'wander'; a.path = []; a.target = null;
+    return; // переварит обиду до следующего think
   }
 
   const dt = T.utilityTickEvery;
@@ -143,6 +144,7 @@ export function think(a, world) {
 
 export function enterLost(a, world) {
   a.activity = 'lost';
+  a.perception = 1; // потерявшийся поднимает голову от телефона и озирается
   a.path = []; a.target = null;
   a.lostSince = world.t;
   a.stress = Math.min(100, a.stress + T.lostStressSpike);
