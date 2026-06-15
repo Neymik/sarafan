@@ -26,6 +26,13 @@ export const T = {
   // lost
   lostStressSpike: 25, lostNeighborStress: 5,
   phoneMapBase: 8, phoneMapDensityK: 0.6, lostTimeout: 25,
+  // flow fields
+  smartFieldK: 0.35,        // штраф клетки за агента плотности
+  smartRecomputeEvery: 2,   // реальных сек
+  smartDuration: 20,        // сколько агент «смотрит по сторонам» после решения обойти
+  jamThreshold: 7,          // соседей в пробе = «впереди затор»
+  jamMarkTtl: 30, jamMarksMax: 4,
+  boardLocalRadius: 15,     // радиус «участка», о котором знает табло
 };
 export function speedFactor(n) { return Math.max(0.15, 1 - Math.max(0, n - T.comfortN) * 0.09); }
 export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }
