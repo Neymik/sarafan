@@ -5,6 +5,7 @@ import { makeAgent } from './sim/agent.js';
 import { SpatialHash } from './sim/spatialHash.js';
 import { simTick } from './sim/steering.js';
 import { makeWorldFacts } from './sim/knowledge.js';
+import { initBoards } from './ui/boards.js';
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -15,6 +16,7 @@ export const world = { t: 0, map: MAP, agents: [], flashes: [], debug: false, ha
 window.world = world;
 
 window.addEventListener('keydown', e => { if (e.key === 'd') world.debug = !world.debug; });
+initBoards(canvas, world);
 
 for (let i = 0; i < T.agentCount; i++) {
   const a = makeAgent(world, i);
