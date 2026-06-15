@@ -2,7 +2,7 @@ import { T } from '../data/tuning.js';
 
 export function initScore(world) {
   world.score = {
-    incidents: 0, angry: 0, served: 0,
+    incidents: 0, angry: 0,
     press: { pos: 0, neg: 0 },
     concertWant: 0, concertHit: 0,
     stressHist: [],
@@ -25,7 +25,11 @@ export function scoreTick(world, dt) {
     const j = world.agents.find(a => a.kind === 'journalist');
     if (j) {
       const around = world.hash.queryCircle(j.x, j.y, 8).filter(a => a !== j);
-      if (around.some(a => a.activity === 'mobbing')) s.press.neg++;
+      const incidentNear = [3, 4].some(i => {
+        const s = world.fields?.slots?.[i];
+        return s && (s.x + s.w / 2 - j.x) ** 2 + (s.y + s.h / 2 - j.y) ** 2 < 64;
+      });
+      if (incidentNear || around.some(a => a.activity === 'mobbing')) s.press.neg++;
       else if (around.length > 3) {
         const avg = around.reduce((sum, a) => sum + a.stress, 0) / around.length;
         if (avg < 40 && around.some(a => a.activity === 'browse' || a.activity === 'queue')) s.press.pos++;
