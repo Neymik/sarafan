@@ -1,46 +1,51 @@
-// Мир 60×44 м. Препятствия — прямоугольники blocks. Двери — проёмы, которые
-// расписание может закрывать (становятся физическими блоками + клетками стен).
+// Мир 60×44 м. POI — прямоугольные объекты с гранью-«прилавком» (face).
+// front-точка (fx, fy) — подход/цель поля/голова очереди — предвычисляется ниже.
 export const MAP = {
   w: 60, h: 44,
-  doors: [
-    { x: 19, y: 9, w: 4, h: 1 },   // d0 западный проём зала сцены
-    { x: 37, y: 9, w: 4, h: 1 },   // d1 восточный проём зала сцены
-  ],
-  blocks: [
-    // стена зала сцены y=9 с двумя проёмами (проёмы = doors выше)
-    { x: 1,  y: 9, w: 18, h: 1 }, { x: 23, y: 9, w: 14, h: 1 }, { x: 41, y: 9, w: 18, h: 1 },
-    { x: 8,  y: 2, w: 44, h: 3, label: 'СЦЕНА' },
-    // ряд мерч-стендов
-    { x: 6, y: 13, w: 8, h: 3 }, { x: 18, y: 13, w: 8, h: 3 },
-    { x: 34, y: 13, w: 8, h: 3 }, { x: 46, y: 13, w: 8, h: 3 },
-    // два ряда выставочных будок 6×4, проходы 4 м
-    { x: 6, y: 20, w: 6, h: 4 }, { x: 16, y: 20, w: 6, h: 4 }, { x: 26, y: 20, w: 6, h: 4 },
-    { x: 36, y: 20, w: 6, h: 4 }, { x: 46, y: 20, w: 6, h: 4 },
-    { x: 6, y: 28, w: 6, h: 4 }, { x: 16, y: 28, w: 6, h: 4 }, { x: 26, y: 28, w: 6, h: 4 },
-    { x: 36, y: 28, w: 6, h: 4 }, { x: 46, y: 28, w: 6, h: 4 },
-    // стойка фудкорта
-    { x: 6, y: 38, w: 10, h: 3, label: 'ФУД' },
-  ],
   pois: {
-    stage:     { x: 30, y: 7,  label: 'Сцена',          weight: 0 },
-    merch1:    { x: 10, y: 17, label: 'Мерч A',         weight: 2,   service: { rate: 6, queueDir: [1, 0] } },
-    merch2:    { x: 50, y: 17, label: 'Мерч B',         weight: 2,   service: { rate: 6, queueDir: [-1, 0] } },
-    food:      { x: 11, y: 37, label: 'Фудкорт',        weight: 3,   service: { rate: 4, queueDir: [1, 0] } },
-    info:      { x: 33, y: 40, label: 'Инфостойка',     weight: 1 },
-    wcL:       { x: 3,  y: 22, label: 'Туалет (зап.)',  weight: 1 },
-    wcR:       { x: 56, y: 30, label: 'Туалет (вост.)', weight: 1 },
-    photo:     { x: 44, y: 34, label: 'Фотозона',       weight: 2.5 },
-    autograph: { x: 12, y: 34, label: 'Автограф-зона',  weight: 2.5 },
-    boothA:    { x: 14, y: 22, label: 'Стенд студии',   weight: 1.5 },
-    boothB:    { x: 29, y: 26, label: 'Стенд издателя', weight: 1.5 },
-    boothC:    { x: 44, y: 30, label: 'Инди-уголок',    weight: 1.5 },
-    exitMain:  { x: 30, y: 42, label: 'Главный вход',   weight: 0, exit: true },
-    exitW:     { x: 2,  y: 35, label: 'Западный вход',  weight: 0, exit: true },
-    exitE:     { x: 57, y: 12, label: 'Восточный вход', weight: 0, exit: true },
+    stage:     { x: 14, y: 1,  w: 32, h: 4, face: 'S', label: 'СЦЕНА',          weight: 0 },
+    wcL:       { x: 1,  y: 14, w: 2,  h: 3, face: 'E', label: 'Туалет (зап.)',  weight: 1 },
+    merch1:    { x: 1,  y: 20, w: 2,  h: 6, face: 'E', label: 'Мерч A',         weight: 2,   service: { rate: 6 }, stock: 15 },
+    autograph: { x: 1,  y: 30, w: 2,  h: 5, face: 'E', label: 'Автограф-зона',  weight: 2.5 },
+    wcR:       { x: 57, y: 14, w: 2,  h: 3, face: 'W', label: 'Туалет (вост.)', weight: 1 },
+    merch2:    { x: 57, y: 20, w: 2,  h: 6, face: 'W', label: 'Мерч B',         weight: 2,   service: { rate: 6 }, stock: 15 },
+    depot:     { x: 57, y: 30, w: 2,  h: 6, face: 'W', label: 'СКЛАД',          weight: 0,   staff: true },
+    boothA:    { x: 15, y: 15, w: 6,  h: 3, face: 'S', label: 'Стенд студии',   weight: 1.5 },
+    boothB:    { x: 33, y: 21, w: 6,  h: 3, face: 'S', label: 'Стенд издателя', weight: 1.5 },
+    boothC:    { x: 24, y: 27, w: 6,  h: 3, face: 'N', label: 'Инди-уголок',    weight: 1.5 },
+    food:      { x: 6,  y: 38, w: 12, h: 3, face: 'N', label: 'Фудкорт',        weight: 3,   service: { rate: 8 } },
+    info:      { x: 20, y: 39, w: 5,  h: 3, face: 'N', label: 'Инфостойка',     weight: 1 },
+    photo:     { x: 44, y: 39, w: 6,  h: 3, face: 'N', label: 'Фотозона',       weight: 2.5 },
+    exitMain:  { x: 30,   y: 42.2, label: 'Главный вход',   weight: 0, exit: true },
+    exitW:     { x: 1.5,  y: 36.5, label: 'Западный вход',  weight: 0, exit: true },
+    exitE:     { x: 58.2, y: 10,   label: 'Восточный вход', weight: 0, exit: true },
   },
-  boards: [ { x: 28, y: 41 }, { x: 30, y: 18 }, { x: 14, y: 26 }, { x: 46, y: 26 } ],
-  spawn: { x: 30, y: 42 },
+  // безымянные острова будок: 3 ряда × 5, проходы 3 м (именные — в pois выше)
+  blocks: [
+    { x: 6, y: 15, w: 6, h: 3 }, { x: 24, y: 15, w: 6, h: 3 }, { x: 33, y: 15, w: 6, h: 3 }, { x: 42, y: 15, w: 6, h: 3 },
+    { x: 6, y: 21, w: 6, h: 3 }, { x: 15, y: 21, w: 6, h: 3 }, { x: 24, y: 21, w: 6, h: 3 }, { x: 42, y: 21, w: 6, h: 3 },
+    { x: 6, y: 27, w: 6, h: 3 }, { x: 15, y: 27, w: 6, h: 3 }, { x: 33, y: 27, w: 6, h: 3 }, { x: 42, y: 27, w: 6, h: 3 },
+  ],
+  boards: [{ x: 28, y: 41 }, { x: 30, y: 19 }, { x: 13, y: 25 }, { x: 45, y: 25 }],
+  spawn: { x: 30, y: 41.5 },
 };
+
+export function poiFront(p) {
+  if (p.exit) return { x: p.x, y: p.y };
+  const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+  switch (p.face) {
+    case 'N': return { x: cx, y: p.y - 0.7 };
+    case 'S': return { x: cx, y: p.y + p.h + 0.7 };
+    case 'W': return { x: p.x - 0.7, y: cy };
+    case 'E': return { x: p.x + p.w + 0.7, y: cy };
+  }
+}
+// очередь растёт вдоль грани-прилавка
+export function queueDirOf(p) { return (p.face === 'N' || p.face === 'S') ? [1, 0] : [0, 1]; }
+// все твёрдые прямоугольники: блоки + POI-объекты (exit — точки, не твёрдые)
+export function solidRects(map) {
+  return [...map.blocks, ...Object.values(map.pois ?? {}).filter(p => !p.exit && p.w)];
+}
+for (const p of Object.values(MAP.pois)) { const f = poiFront(p); p.fx = f.x; p.fy = f.y; }
 export const EXITS = Object.keys(MAP.pois).filter(k => MAP.pois[k].exit);
-// service rate — игровых секунд на одного клиента ×10 (rate 4 = 40 игровых сек);
-// реальная длительность = rate * 10 / T.timeScale.
+// service rate: реальные сек на клиента = rate * 10 / T.timeScale

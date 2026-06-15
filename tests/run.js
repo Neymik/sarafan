@@ -43,22 +43,19 @@ test('rect: снаружи отодвигает на радиус от гран�
   assert.equal(c.y, 7);
 });
 
-test('grid: проход проходим, будка и граница нет, закрытая дверь закрыта', () => {
-  const g0 = buildGrid(MAP, 0);
-  assert.equal(isWalkable(g0, 14, 22), true);   // проход между будками
-  assert.equal(isWalkable(g0, 8, 21), false);   // внутри будки
-  assert.equal(isWalkable(g0, 0, 10), false);   // граница
-  assert.equal(isWalkable(g0, 20, 9.5), true);  // открытый проём d0
-  const g1 = buildGrid(MAP, 1);                  // d0 закрыта
-  assert.equal(isWalkable(g1, 20, 9.5), false);
-  assert.equal(isWalkable(g1, 38, 9.5), true);  // d1 всё ещё открыт
+test('grid v3: проход проходим, POI-объект и остров — нет', () => {
+  const g = buildGrid(MAP, [null, null, null, null, null], 0);
+  assert.equal(isWalkable(g, 13, 22), true);    // вертикальный проход между будками
+  assert.equal(isWalkable(g, 8, 16), false);    // безымянный остров
+  assert.equal(isWalkable(g, 2, 21), false);    // merch1 — POI-объект твёрд
+  assert.equal(isWalkable(g, 30, 8), true);     // площадь сцены открыта
 });
 
 test('field: градиент ведёт к POI и обтекает будки', () => {
-  const g = buildGrid(MAP, 0);
-  const f = computeField(g, MAP.pois.food.x, MAP.pois.food.y, null);
-  assert.ok(isFinite(f[(12 | 0) * g.W + (56 | 0)]), 'food достижим справа сверху');
-  let x = 56.5, y = 12.5;
+  const g = buildGrid(MAP, [null, null, null, null, null], 0);
+  const f = computeField(g, MAP.pois.food.fx, MAP.pois.food.fy, null);
+  assert.ok(isFinite(f[(34 | 0) * g.W + (56 | 0)]), 'food достижим справа');
+  let x = 56.5, y = 34.5;
   const d0 = f[(y | 0) * g.W + (x | 0)];
   const dir = fieldDir(g, f, x, y);
   assert.ok(dir, 'градиент есть');
@@ -66,30 +63,42 @@ test('field: градиент ведёт к POI и обтекает будки',
   assert.ok(d1 < d0, 'градиент спускается');
 });
 
-test('field: закрытие западной двери удлиняет путь к сцене с запада', () => {
-  const gOpen = buildGrid(MAP, 0), gClosed = buildGrid(MAP, 1);
-  const fOpen = computeField(gOpen, MAP.pois.stage.x, MAP.pois.stage.y, null);
-  const fClosed = computeField(gClosed, MAP.pois.stage.x, MAP.pois.stage.y, null);
-  const i = (12 | 0) * gOpen.W + (10 | 0);
-  assert.ok(fClosed[i] > fOpen[i] + 5, 'обход через восточную дверь дороже');
-  assert.ok(isFinite(fClosed[i]), 'но путь существует');
-});
-
 test('smartField: плотный кластер дорожает', () => {
-  const g = buildGrid(MAP, 0);
+  const g = buildGrid(MAP, [null, null, null, null, null], 0);
   const dens = new Float32Array(g.W * g.H);
-  for (let x = 18; x < 24; x++) dens[17 * g.W + x] = 10;
+  for (let x = 18; x < 24; x++) dens[19 * g.W + x] = 10;
   const cost = i => 1 + 0.35 * dens[i];
-  const fSmart = computeField(g, MAP.pois.merch1.x, MAP.pois.merch1.y, cost);
-  const fClear = computeField(g, MAP.pois.merch1.x, MAP.pois.merch1.y, null);
-  const i = 17 * g.W + 30;
+  const fSmart = computeField(g, MAP.pois.merch1.fx, MAP.pois.merch1.fy, cost);
+  const fClear = computeField(g, MAP.pois.merch1.fx, MAP.pois.merch1.fy, null);
+  const i = 19 * g.W + 30;
   assert.ok(fSmart[i] > fClear[i], 'через толпу дороже');
 });
 
+test('clearance: центр коридора дешевле пристенка', () => {
+  const tiny = { w: 9, h: 7, blocks: [], pois: {} };           // только внешние стены
+  const g = buildGrid(tiny, [null, null, null, null, null], 0);
+  assert.equal(g.clear[1 * g.W + 4], 1);                        // у стены
+  assert.equal(g.clear[3 * g.W + 4], 3);                        // центр
+  const f = computeField(g, 1, 3, null);
+  assert.ok(f[3 * g.W + 6] < f[1 * g.W + 6], 'путь по центру дешевле: ' +
+    f[3 * g.W + 6] + ' vs ' + f[1 * g.W + 6]);
+});
+
+test('барьер-слот: знающая маска блокирована, незнающая — нет', () => {
+  const fl = new Fields(MAP);
+  fl.setSlot(0, { x: 12, y: 21, w: 3, h: 3 });  // лента поперёк прохода
+  assert.equal(fl.activeMask(), 1);
+  assert.equal(isWalkable(fl.gridFor(1), 13, 22), false, 'знающий видит стену');
+  assert.equal(isWalkable(fl.gridFor(0), 13, 22), true, 'незнающий идёт по памяти');
+  fl.clearSlot(0);
+  assert.equal(fl.activeMask(), 0);
+  assert.equal(isWalkable(fl.gridFor(1), 13, 22), true, 'после снятия свободно');
+});
+
 test('randomWalkableNear: всегда проходимая клетка', () => {
-  const g = buildGrid(MAP, 0);
+  const g = buildGrid(MAP, [null, null, null, null, null], 0);
   for (let k = 0; k < 50; k++) {
-    const p = randomWalkableNear(g, 8, 21, 6);
+    const p = randomWalkableNear(g, 8, 19, 6);
     assert.ok(isWalkable(g, p.x, p.y), `(${p.x},${p.y})`);
   }
 });

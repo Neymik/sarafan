@@ -1,61 +1,59 @@
 export const T = {
   simHz: 30,
-  timeScale: 30,          // 1 реальная сек = 30 игровых сек; день 13:00→14:30 = 3 мин
+  timeScale: 60,          // 1 игровая минута = 1 реальная сек; день 13:00→16:00 = 3 мин
   pxPerMeter: 16,
-  agentCount: 400,
-  // плотность (n = соседей в радиусе densityRadius)
-  densityRadius: 2.0,
-  comfortN: 5,            // соседей в 2 м, которые ещё «норма» для выставки
-  jamN: 8,
+  // плотность
+  densityRadius: 2.0, comfortN: 5, jamN: 8,
   // силы
-  personalSpaceForce: 2.0,
-  alignmentThreshold: 4,
+  personalSpaceForce: 2.0, alignmentThreshold: 4, wallRepel: 3.0,
   // нужды/стресс (в единицах за реальную секунду)
   fatigueRate: 0.6, boredomRate: 1.2, phoneItchRate: 1.0,
-  stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 3.5, // равновесие ≈ 7.9 соседей
+  stressFromDensity: 1.2, stressFromContact: 0.8, stressDecay: 3.5,
   blockedStressAfter: 3, blockedStressRate: 2.0,
   // знание
-  sightRadius: 8,
-  rumorMutation: 0.1,
-  boardRadius: 6,
-  lagRed: 20,             // реальных сек устаревания до красного
+  sightRadius: 8, rumorMutation: 0.1, boardRadius: 6, lagRed: 20,
   // мозг
-  utilityTickEvery: 1.5,  // реальных сек
-  hysteresis: 1.3,
-  // lost
+  utilityTickEvery: 1.5, hysteresis: 1.3,
   lostStressSpike: 25, lostNeighborStress: 5,
   phoneMapBase: 8, phoneMapDensityK: 0.6, lostTimeout: 25,
   // flow fields
-  smartFieldK: 0.35,        // штраф клетки за агента плотности
-  smartRecomputeEvery: 2,   // реальных сек
-  smartDuration: 20,        // сколько агент «смотрит по сторонам» после решения обойти
-  jamThreshold: 7,          // соседей в пробе = «впереди затор»
-  jamMarkTtl: 30, jamMarksMax: 4,
-  boardLocalRadius: 15,     // радиус «участка», о котором знает табло
+  smartFieldK: 0.35, smartRecomputeEvery: 2, smartDuration: 20,
+  jamThreshold: 7, jamMarkTtl: 30, jamMarksMax: 4,
+  boardLocalRadius: 15,
+  fieldCacheMax: 12,      // максимум кэшированных масок Fields
   // мозг v2
-  browseMin: 4, browseMax: 10,
-  poiCooldownTime: 60,
-  panicForgetChance: 0.05,    // за think-тик при stress>80
-  jamReactCooldown: 10,
-  leaveWeight: 0.9,
+  browseMin: 4, browseMax: 10, poiCooldownTime: 60,
+  panicForgetChance: 0.05, jamReactCooldown: 10, leaveWeight: 0.9,
   // диалоги
-  talkRadius: 1.2, talkChance: 0.15,   // в сек при sociability 1×1
-  talkMin: 4, talkMax: 7,
-  talkCooldown: 20,
+  talkRadius: 1.2, talkChance: 0.15, talkMin: 4, talkMax: 7, talkCooldown: 20,
   talkTransfer: 0.9, bystanderBase: 0.1, bystanderRadius: 3,
   // очереди
-  queueSpacing: 0.6,
-  queueJoinRadius: 3,
+  queueSpacing: 0.6, queueJoinRadius: 3,
   queueDefectStress: 70, queueDefectSlot: 10,
-  mobThreshold: 9,           // соседей у точки обслуживания = «ком»
-  mobRateFactor: 0.4,
-  injusticeStress: 15,
-  serveSatisfaction: 30,     // сброс стресса обслуженному
+  mobThreshold: 9, mobRateFactor: 0.4, injusticeStress: 15, serveSatisfaction: 30,
   // население
-  arrivalEvery: 1.4,   // реальных сек между приходами (база)
-  maxAgents: 700,
+  openingWave: 200, openingWaveDur: 10, // 200 чел за первые 10 реальных сек
+  arrivalEvery: 1.0, maxAgents: 700,
+  // логистика
+  stockLow: 5, stockBatch: 10, reserveInit: 40,
+  carrierSpeed: 1.2, carrierPriority: 2, starvedStress: 0.8,
+  // спецагенты
+  followAura: 4, followMax: 15,
+  starAura: 10, poseGameMin: 15,        // косплеер позирует 15 игр. мин (15 реальных сек)
+  pairSepDist: 15, pairReuniteDist: 5, pairEveryGameMin: 15,
+  litterEvery: 2, litterChance: 0.3, litterMax: 40, litterStress: 0.3,
+  // эвенты
+  rumorEvery: 45, rumorJitter: 15,
+  incidentDensity: 12, incidentAfter: 10, incidentDur: 20, incidentStress: 15, incidentRadius: 5,
+  // инструменты игрока
+  promoFactor: 3, promoTime: 60,
+  paCooldown: 45, paStress: 5,
+  rumorInjectCooldown: 30, rumorInjectCount: 15,
+  volunteerMax: 2, volunteerRadius: 6, volunteerTeachEvery: 10,
+  barrierSlots: 3, dragHold: 0.25,
+  pressCheckEvery: 10,
 };
-export function speedFactor(n) { return Math.max(0.15, 1 - Math.max(0, n - T.comfortN) * 0.09); }
+export function speedFactor(n) { return Math.max(0.25, 1 - Math.max(0, n - T.comfortN) * 0.09); }
 export function turnFactor(n)  { return Math.max(0.2,  1 - Math.max(0, n - T.comfortN) * 0.10); }
-export function gameClock(t)   { return 13 * 3600 + t * T.timeScale; } // игровые секунды
+export function gameClock(t)   { return 13 * 3600 + t * T.timeScale; }
 export function fmtClock(gs)   { const h = (gs / 3600) | 0, m = ((gs % 3600) / 60) | 0; return `${h}:${String(m).padStart(2, '0')}`; }
