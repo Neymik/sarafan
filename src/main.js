@@ -8,6 +8,7 @@ import { makeWorldFacts } from './sim/knowledge.js';
 import { initBoards } from './ui/boards.js';
 import { tickSchedule } from './data/schedule.js';
 import { drawHud } from './ui/hud.js';
+import { drawDebug } from './render/debug.js';
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -37,5 +38,5 @@ function frame(now) {
   render();
   requestAnimationFrame(frame);
 }
-function render() { draw(ctx, world); drawHud(ctx, world); }
+function render() { draw(ctx, world); if (world.debug) drawDebug(ctx, world); drawHud(ctx, world); }
 requestAnimationFrame(frame);
