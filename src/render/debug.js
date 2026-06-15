@@ -1,4 +1,5 @@
 import { T } from '../data/tuning.js';
+import { computeDesires } from '../sim/agent.js';
 const S = T.pxPerMeter;
 
 export function drawDebug(ctx, world) {
@@ -35,5 +36,23 @@ export function drawDebug(ctx, world) {
   ctx.strokeStyle = 'rgba(120,180,255,0.4)';
   for (const ag of world.agents) {
     ctx.beginPath(); ctx.moveTo(ag.x * S, ag.y * S); ctx.lineTo((ag.x + ag.vx) * S, (ag.y + ag.vy) * S); ctx.stroke();
+  }
+  // линии к топ-3 желаниям выбранного агента
+  if (world.selected && !world.selected.despawn) {
+    const desires = computeDesires(world.selected, world).slice(0, 3);
+    desires.forEach((d, rank) => {
+      const p = world.map.pois[d.key];
+      if (!p) return;
+      const alpha = 0.7 - rank * 0.2; // fade by rank
+      ctx.strokeStyle = `rgba(255,220,80,${alpha})`; ctx.lineWidth = 1.5 - rank * 0.4;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(world.selected.x * S, world.selected.y * S);
+      ctx.lineTo(p.fx * S, p.fy * S);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(255,220,80,${alpha})`; ctx.font = '9px monospace';
+      ctx.fillText(d.score.toFixed(1), (p.fx + 0.2) * S, (p.fy - 0.3) * S);
+    });
   }
 }

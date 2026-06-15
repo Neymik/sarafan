@@ -161,7 +161,7 @@ export function pairTick(world) {
       }
     } else if (a.searching && d2 < T.pairReuniteDist ** 2) {
       for (const x of [a, b]) { x.searching = false; x.stress = Math.min(x.stress, 10); x.target = null; }
-      world.flashes.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, t: world.t, r: 2, kind: 'heart' });
+      world.flashes.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, t: world.t, r: 2, kind: 'heart', hue: (Math.min(a.id, b.id) * 47) % 360 });
     } else if (a.searching) {
       for (const x of [a, b]) {
         if (world.t >= (x.searchRetargetAt ?? 0)) {

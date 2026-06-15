@@ -79,6 +79,7 @@ export function initTools(canvas, world) {
     // fake-hype armed: intercept next canvas click before other branches
     if (world.ui.armFakeHype) {
       world.ui.armFakeHype = false;
+      world.ui._suppressClick = true;
       world.ui.rumorUntil = world.t + T.rumorInjectCooldown;
       injectFakeHype(world, { x: m.x, y: m.y });
       return;
