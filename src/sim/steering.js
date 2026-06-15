@@ -70,6 +70,7 @@ function updateStress(world, dt) {
 function stepAgent(a, world, dt) {
   let dx = 0, dy = 0;
   let sx = 0, sy = 0, hasGoal = false;
+  if (a.lureTarget) { a.target = a.lureTarget; a.goalPoi = null; }
   if (a.goalPoi && world.fields) {
     const mode = (a.smartUntil > world.t) ? 'smart' : 'clear';
     const mask = (a.obstMask ?? 0) & (world.obstMask ?? 0);

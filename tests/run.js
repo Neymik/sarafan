@@ -103,6 +103,7 @@ test('randomWalkableNear: всегда проходимая клетка', () =>
   }
 });
 
+import { luresTick } from '../src/sim/lures.js';
 import { bystanderChance, pickTopic, applyTopic, finishTalk } from '../src/sim/dialogue.js';
 import { initQueues, queueTick, queueSlotPos } from '../src/sim/queue.js';
 import { tickSchedule } from '../src/data/schedule.js';
@@ -434,6 +435,21 @@ test('pickTopic: евангелист эмитит boothGood своего бут
   let got = false;
   for (let i = 0; i < 20; i++) { const t = pickTopic(ev, other, world); if (t.kind === 'boothGood' && t.key === 'boothA') got = true; }
   assert.ok(got, 'евангелист хоть раз выдал boothGood');
+});
+
+test('lure: прибытие в радиус роняет радость и снимает цель', () => {
+  const world = { t: 0, agents: [], lures: [{ x: 10, y: 10, until: 100 }] };
+  const a = { x: 10.5, y: 10.5, joy: 60, stress: 0, lureTarget: { x: 10, y: 10 } };
+  world.agents.push(a);
+  luresTick(world);
+  assert.equal(a.lureTarget, null, 'разочаровался');
+  assert.ok(a.joy < 60 && a.stress > 0);
+});
+
+test('lure: истёкший по TTL удаляется', () => {
+  const world = { t: 200, agents: [], lures: [{ x: 10, y: 10, until: 100 }] };
+  luresTick(world);
+  assert.equal(world.lures.length, 0);
 });
 
 let fail = 0;
